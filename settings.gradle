@@ -1,0 +1,5 @@
+rootProject.name = 'bean-runner'
+
+include 'bean-runner-spring-boot-starter'
+include 'bean-runner-core'
+

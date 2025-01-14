@@ -1,0 +1,26 @@
+server:
+  port: ${PORT:8080}
+
+vaadin:
+  launch-browser: true
+spring:
+  application:
+    name: bean-runner-test
+
+bean-runner:
+  display-name: BeanRunner Tests
+  storage:
+    type: local
+    local:
+      path: bean-runner-test-files
+
+first-task:
+  setting-a: default a default value
+  setting-b: 25
+  setting-c: setting c default value
+  should-fail-task-h: false
+  should-fail-task-c: false
+
+simple-task:
+  task-b-result: option_1
+  should-fail-task-b: false

@@ -1,0 +1,313 @@
+@import "theme-editor.css";
+/*
+   CSS styling examples for the Vaadin app.
+
+   Visit https://vaadin.com/docs/styling/application-theme/ for more information.
+*/
+
+
+html {
+    --header-background: linear-gradient(0deg, rgb(173, 208, 223) 0%, rgba(207,234,255,1) 4%, rgb(202, 229, 250) 6%, rgba(212,236,255,1) 6%, rgba(193,227,252,1) 85%, rgba(250,255,255,1) 100%);
+    --header-color: #35789c;
+    --vaadin-input-field-hover-highlight-opacity: 0;
+    --vaadin-input-field-hover-highlight: none;
+    /*--vaadin-input-field-background: white;*/
+    --vaadin-input-field-readonly-border: none;
+}
+
+/*vaadin-text-area:hover::part(input-field) {*/
+/*    background-color: inherit; !* or specify a color of your choice *!*/
+/*}*/
+.diagram {
+    background-image: url("../../../images/fabric.png");
+    background-size: cover;
+    background-repeat: repeat;
+}
+.configuration-actions {
+    height: 55px;
+    padding: 5px;
+    background: var(--header-background);
+    color: var(--header-color);
+    min-height: 55px;
+}
+
+/* Example: CSS class name to center align the content . */
+.centered-content {
+  margin: 0 auto;
+  max-width: 250px;
+}
+
+/* Example: the style is applied only to the textfields which have the `bordered` class name. */
+/*vaadin-text-field.bordered::part(input-field) {*/
+/*  box-shadow: inset 0 0 0 1px var(--lumo-contrast-30pct);*/
+/*  background-color: var(--lumo-base-color);*/
+/*}*/
+
+.app-button {
+  background: linear-gradient(#212c45, #192232);
+  box-shadow: 10px 10px 20px black;
+}
+
+.main-view {
+  background-image: url("../images/background.jpg");
+  background-size: cover;
+}
+
+.navbar {
+    padding: 10px;
+    /*background: linear-gradient(0deg, rgba(32,89,147,1) 0%, rgba(29,76,131,1) 15%, rgba(100,189,212,1) 100%);*/
+    background: #205993FF;
+    color: white;
+}
+
+.identifiers-header {
+    height: 55px;
+    background: var(--header-background);
+    color: var(--header-color);
+    padding-left: 20px;
+}
+
+/*vaadin-button {*/
+/*  background-color: rgb(42, 113, 170);*/
+/*  border-color: white;*/
+/*  color: white;*/
+/*}*/
+vaadin-grid::part(header-cell) {
+    background: var(--header-background);
+    color: var(--header-color);
+    height: 50px;
+}
+
+vaadin-tabsheet::part(tabs-container) {
+    height: 50px;
+    background: var(--header-background);
+    color: var(--header-color);
+}
+
+vaadin-tab {
+    color: var(--header-color);
+}
+
+vaadin-tab::before {
+    background: var(--header-color);
+}
+
+vaadin-split-layout::part(splitter) {
+    background: #c4e6ffff;
+}
+
+.main-tab {
+    color: #9cdbff;
+}
+
+.configuration-text-editor {
+    background: white;
+    font-size: 18px;
+}
+
+.tasks-header {
+    height: 55px;
+    background: var(--header-background);
+    color: var(--header-color);
+    padding-left: 20px;
+    min-height: 55px;
+}
+
+.toggled {
+    background: linear-gradient(#62a1dc, #4b89ba);
+    color: white;
+}
+
+.cron-description {
+    background: #aeadad;
+    padding: 5px 10px;
+    border-radius: 10px;
+    color: white;
+}
+
+.running {
+    background: orange;
+    color: white;
+}
+
+.failed {
+    background: red;
+    color: white;
+}
+
+.success {
+    background: green;
+    color: white;
+}
+
+.not-started {
+    background: grey;
+    color: white;
+}
+
+.loader-running {
+    width: 48px;
+    height: 48px;
+    border: 3px solid #5989bc;
+    border-bottom-color: transparent;
+    border-radius: 50%;
+    display: inline-block;
+    box-sizing: border-box;
+    animation: rotation-forward 0.8s linear infinite;
+}
+
+
+.loader-rewinding {
+    width: 48px;
+    height: 48px;
+    border: 3px solid #9e4d1b;
+    border-bottom-color: transparent;
+    border-radius: 50%;
+    display: inline-block;
+    box-sizing: border-box;
+    animation: rotation-backward 0.8s linear infinite;
+}
+
+@keyframes rotation-forward {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes rotation-backward {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(-360deg);
+    }
+}
+
+.task-details-header {
+    background: var(--header-background);
+    padding: 10px;
+    color: var(--header-color);
+    /*min-height: 55px;*/
+    /*max-height: 55px;*/
+    /*height: 55px;*/
+}
+
+.task-tag-green {
+    background: green;
+    color: white;
+    padding: 5px;
+    border-radius: 5px;
+}
+
+.task-tag-red {
+    background: red;
+    color: white;
+    padding: 5px;
+    border-radius: 5px;
+}
+
+.task-tag-grey {
+    background: grey;
+    color: white;
+    padding: 5px;
+    border-radius: 5px;
+}
+
+.task-tag-orange {
+    background: orange;
+    color: white;
+    padding: 5px;
+    border-radius: 5px;
+}
+
+.task-tag-blue {
+    background: blue;
+    color: white;
+    padding: 5px;
+    border-radius: 5px;
+}
+
+.task-tag-yellow {
+    background: yellow;
+    color: black;
+    padding: 5px;
+    border-radius: 5px;
+}
+
+.task-tag-purple {
+    background: purple;
+    color: white;
+    padding: 5px;
+    border-radius: 5px;
+}
+
+.grid-toolbar {
+    background: Var(--header-background);
+}
+
+.btn-show-hide-columns {
+    background: transparent;
+}
+
+.txt-filter {
+    background: transparent;
+    color: var(--header-color);
+    --vaadin-input-field-height: 24px;
+}
+
+vaadin-tabs::part(tabs) {
+    margin: 0 !important;
+}
+
+.grid-title {
+    margin-left: 10px;
+    color: var(--header-color);
+    font-weight: bold;
+    text-shadow: 1px 1px 1px black;
+}
+
+.vertical-tabs {
+    background: var(--header-background);
+    color: var(--header-color);
+    padding: 0;
+    margin: 0;
+}
+
+@keyframes rotate-icon {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(720deg);
+    }
+}
+
+/* Apply the animation when the icon appears */
+.rotating-icon {
+    display: inline-block;
+    animation: rotate-icon 1.5s ease-in-out;
+}
+
+.rewind-button {
+    background: linear-gradient(#26c776, #1b9859);
+    color: white;
+}
+
+.glow-button {
+    background-color: #f0c420; /* Yellow background */
+    color: #fff; /* White text */
+    border: none;
+    padding: 10px 20px;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(240, 196, 32, 0.5); /* Initial subtle glow */
+    transition: box-shadow 0.3s ease-in-out; /* Smooth transition for hover effect */
+}
+
+.glow-button:hover {
+    box-shadow: 0 0 20px rgba(240, 196, 32, 0.8); /* Enhanced glow on hover */
+}

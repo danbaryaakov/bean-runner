@@ -1,0 +1,156 @@
+@import "theme-editor.css";
+/*
+   CSS styling examples for the Vaadin app.
+
+   Visit https://vaadin.com/docs/styling/application-theme/ for more information.
+*/
+
+
+html {
+    --header-background: linear-gradient(#faffff, #def1ff);
+    --header-color: #35789c;
+    --vaadin-input-field-hover-highlight-opacity: 0;
+    --vaadin-input-field-hover-highlight: none;
+    --vaadin-input-field-background: white;
+}
+
+vaadin-text-area:hover::part(input-field) {
+    background-color: inherit; /* or specify a color of your choice */
+}
+
+.configuration-actions {
+    height: 55px;
+    padding: 5px;
+    background: var(--header-background);
+    color: var(--header-color);
+    min-height: 55px;
+}
+
+/* Example: CSS class name to center align the content . */
+.centered-content {
+  margin: 0 auto;
+  max-width: 250px;
+}
+
+/* Example: the style is applied only to the textfields which have the `bordered` class name. */
+vaadin-text-field.bordered::part(input-field) {
+  box-shadow: inset 0 0 0 1px var(--lumo-contrast-30pct);
+  background-color: var(--lumo-base-color);
+}
+
+.app-button {
+  background: linear-gradient(#212c45, #192232);
+  box-shadow: 10px 10px 20px black;
+}
+
+.main-view {
+  background-image: url("../images/background.jpg");
+  background-size: cover;
+}
+
+.navbar {
+  padding: 10px;
+  background: linear-gradient(#424f7e, #1e345a) !important;
+  color: white;
+}
+
+/*vaadin-button {*/
+/*  background-color: rgb(42, 113, 170);*/
+/*  border-color: white;*/
+/*  color: white;*/
+/*}*/
+vaadin-grid::part(header-cell) {
+    background: var(--header-background);
+    color: var(--header-color);
+    height: 50px;
+}
+
+vaadin-tabsheet::part(tabs-container) {
+    height: 50px;
+    background: var(--header-background);
+    color: var(--header-color);
+}
+
+vaadin-tab {
+    color: var(--header-color);
+}
+
+vaadin-tab::before {
+    background: var(--header-color);
+}
+
+vaadin-split-layout::part(splitter) {
+    background: var(--header-background);
+}
+
+.main-tab {
+    color: #9cdbff;
+}
+
+.configuration-text-editor {
+    background: white;
+    font-size: 18px;
+}
+
+.tasks-header {
+    background: var(--header-background);
+    color: var(--header-color);
+    padding: 10px;
+    min-height: 55px;
+}
+
+.cron-description {
+    background: #7bb6e6;
+    padding: 5px 10px;
+    border-radius: 5px;
+    color: white;
+}
+
+.running {
+    background: orange;
+    color: white;
+}
+
+.failed {
+    background: red;
+    color: white;
+}
+
+.success {
+    background: green;
+    color: white;
+}
+
+.not-started {
+    background: grey;
+    color: white;
+}
+
+.loader {
+    width: 48px;
+    height: 48px;
+    border: 3px solid #5989bc;
+    border-bottom-color: transparent;
+    border-radius: 50%;
+    display: inline-block;
+    box-sizing: border-box;
+    animation: rotation 0.8s linear infinite;
+}
+
+@keyframes rotation {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.task-details-header {
+    background: var(--header-background);
+    padding: 10px;
+    color: var(--header-color);
+    /*min-height: 55px;*/
+    /*max-height: 55px;*/
+    /*height: 55px;*/
+}

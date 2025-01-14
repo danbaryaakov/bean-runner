@@ -1,0 +1,25 @@
+---
+---
+
+@import "{{ site.theme }}";
+#header_wrap {
+  background: #19567f;
+  background: -moz-linear-gradient(top, #19567f, #19567f);
+  background: -webkit-linear-gradient(top, #19567f, #19567f);
+  background: -ms-linear-gradient(top, #19567f, #19567f);
+  background: -o-linear-gradient(top, #19567f, #19567f);
+  background: linear-gradient(top, #19567f, #19567f);
+}
+
+#footer_wrap {
+  background: #19567f;
+  background: -moz-linear-gradient(top, #19567f, #19567f);
+  background: -webkit-linear-gradient(top, #19567f, #19567f);
+  background: -ms-linear-gradient(top, #19567f, #19567f);
+  background: -o-linear-gradient(top, #19567f, #19567f);
+  background: linear-gradient(top, #19567f, #19567f);
+}
+
+header, h1, h2, h3, h4, h5 {
+  color: rgb(39, 86, 121); /* Replace with your desired color */
+}

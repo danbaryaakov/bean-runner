@@ -1,0 +1,37 @@
+plugins {
+    id 'java'
+    id 'java-library'
+    id 'org.springframework.boot' version '3.4.1'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id 'com.vaadin' version '24.6.2'
+}
+
+ext {
+    set('vaadinVersion', "24.6.2")
+}
+
+dependencies {
+    api project(":bean-runner-core")
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.15.0'
+    implementation 'com.google.cloud:google-cloud-storage:2.30.1'
+    implementation 'com.cronutils:cron-utils:9.2.1'
+    implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.18.2'
+    implementation 'org.ocpsoft.prettytime:prettytime:5.0.8.Final'
+    implementation 'com.vaadin:vaadin-spring-boot-starter'
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testCompileOnly 'org.projectlombok:lombok'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "com.vaadin:vaadin-bom:${vaadinVersion}"
+    }
+}
+//
+//tasks.named('test') {
+//    useJUnitPlatform()
+//}
