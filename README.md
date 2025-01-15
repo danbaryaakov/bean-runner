@@ -27,7 +27,7 @@ BeanRunner uses the Vaadin framework for it's UI layer, so you need to create a 
 * Select the "Spring" generator on the left side panel
 * Enter your project details
 * Click the "Next" button
-* In the left side panel (Dependencies), expand "Web" and check "Vaadin"
+* In the left side panel (Dependencies), expand "Web" and check "Vaadin". Also select the "Lombok" generator from the "Developer Tools" section.
 * Click "Create"
 #### Using the Vaadin 24 starter project template
 * Download the "Vaadin 24 - Spring Boot" starter project from https://vaadin.com/hello-world-starters
@@ -59,7 +59,7 @@ Add the `@EnableVaadin({"org.beanrunner"})` annotation to your main application 
 
 Add the `@EnableScheduling` annotation if you want to use CRON scheduling for your flows. 
 
-Add the `"org.beanrunner"` package to the `scanBasePackages` attribute of the `@SpringBootApplication` annotation as in the example below:
+Add the `"org.beanrunner"` package to the `scanBasePackages` attribute of the `@SpringBootApplication` annotation as in the example below (Don't forget to add the root packages of your own classes as well)
 
 ```java
 @SpringBootApplication(scanBasePackages = {"org.beanrunner", "com.my.package"})
@@ -74,4 +74,132 @@ public class MySpringApplication {
 }
 ```
 
-More documentation coming soon...
+### Define persistent storage
+
+BeanRunner requires a persistent storage to store runs, configurations and other data. Currently, a local filesystem is supported as well as GCS (Google storage bucket).
+Let's define a local storage for now. Add the following properties to your `application.yml` file:
+
+```yaml
+bean-runner:
+  storage:
+    type: local
+    local:
+    path: bean-runner-files
+```
+
+This will store all bean runner data in a directory called `bean-runner-files` in the root of your project.
+Adjust this as necessary if you want to use a different location.
+
+
+### First Steps
+
+The main building block of a flow is a `Step`. A flow is basically a collection of steps that are connected to each other. Each step is a spring bean extending the `Step` class.
+The step that has no run dependencies is the first step in the flow.
+
+#### Create some Steps
+Let's create some steps and see how they appear in the BeanRunner UI. Create the following classes somewhere in your project, then we'll delve into the details of each class:
+    
+```java
+
+@Slf4j
+@Component
+public class HelloWorld extends Step<Void> {
+
+    @Override
+    public void run() {
+        log.info("Hello, this is the first step");
+    }
+
+}
+```
+
+```java
+@Slf4j
+@Component
+public class Step1 extends Step<Step1.Data> {
+
+    @Autowired
+    @OnSuccess
+    private HelloWorld helloWorld;
+    
+    public void run() {
+        setData(new Data("Hello, this is some data from step 1"));
+    }
+    
+    record Data(String message) {}
+
+}
+```
+
+```java
+@Slf4j
+@Component
+public class Step2 extends Step<Void> {
+
+    @Autowired
+    @OnSuccess
+    private Step1 step1;
+    
+    public void run() {
+        log.info("Step 1 says " + step1.getData().message());
+    }
+
+}
+```
+
+```java
+@Slf4j
+@Component
+public class Step3 extends Step<Void> {
+
+    @Autowired
+    @OnSuccess
+    private Step1 step1;
+    
+    public void run() {
+        log.info("This step happens in parallel to step 2");
+    }
+
+}
+```
+```java
+@Slf4j
+@Component
+public class Step4 extends Step<Void> {
+
+    @Autowired
+    @OnSuccess
+    private Step2 step2;
+
+    @Autowired
+    @OnSuccess
+    private Step3 step3;
+    
+    public void run() {
+        log.info("This step after steps 2 and 3 are complete");
+    }
+
+}
+```
+
+#### Run the Application
+
+Run the application (preferably in debug mode so you can make some changes and see them reflected in the UI without restarting the application)
+Then, open a browser and navigate to `http://localhost:8080`
+
+On the left side of the screen you should see the new flow you created under the 'Flows' section.
+
+![Hello World](/site/hello-world.png)
+
+#### Organizing Steps in the UI
+
+Notice that the first time steps appear in the UI, they can move freely on the screen so you can drag them around to organize as you like. 
+It is recommended that the first step (marked as a star) is at the left side of the screen. 
+Once you position the steps in the relative location, click the 'Pin' button on the top right toolbar <img src="/site/pin.png" alt="Pin" width="25" height="25"> to lock them in place and store their positions.
+Note that every time you change the positions, click the 'Pin' button again to store the positions.
+
+To focus the view on the entire flow, click the 'Fit to View' button <img src="/site/fit.png" alt="Fit" width="25" height="25"> on the top right toolbar.
+
+#### Running the Flow
+
+Click the Play button next to the flow name to run the flow. Select the step you want to focus on to see the logs and status of that step.
