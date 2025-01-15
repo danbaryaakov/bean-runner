@@ -3,9 +3,9 @@
  *
  * Copyright (C) 2025 Dan Bar-Yaakov
  *
- *  bean-runner is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU Lesser General Public License as published by
- *  the Free Software Foundation, either version 3 of the License, or
+ * bean-runner is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
  * bean-runner is distributed in the hope that it will be useful,
