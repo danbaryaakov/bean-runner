@@ -281,9 +281,9 @@ By default, steps are executed with no retry. You can specify a retry configurat
 With this annotation in place, the step will be retried 3 times with a delay of 5 seconds between each retry. The options above are the 
 default when this annotation is added without any parameters.
 
-## Step States
+## Step Status
 
-Each step has a status (relevant to the selected run) that is reflected in the diagram with a specific color. Here are the step states and their colors:
+Each step has a status (relevant to the selected run) that is reflected in the diagram with a specific color. Here are the step statuses and their colors:
 
 * Not started (white)
 * Running (yellow)
