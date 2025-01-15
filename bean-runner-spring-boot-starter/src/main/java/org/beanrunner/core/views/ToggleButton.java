@@ -28,7 +28,7 @@ public class ToggleButton extends Button {
 
     private boolean toggled = false;
 
-    public ToggleButton(String text, Image icon) {
+    public ToggleButton(String text, Image icon, String classPrefix) {
         super(text, icon);
         addClickListener(e -> {
             toggled = !toggled;

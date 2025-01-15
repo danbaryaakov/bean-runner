@@ -20,6 +20,8 @@
 
 package org.beanrunner.core;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +29,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.beanrunner.core.annotations.StepGroup;
 import org.beanrunner.core.annotations.*;
 import org.beanrunner.core.logging.CustomSpringLogbackAppender;
+import org.beanrunner.core.storage.StorageService;
 import org.beanrunner.core.storage.runs.StepRunStorage;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -60,6 +63,9 @@ public class TaskManager {
     private final Map<Step<?>, Long> identifierStartLoadTime = new ConcurrentHashMap<>();
     private final Map<TaskRunIdentifier, Long> identifierPropagationLoadingTime = new ConcurrentHashMap<>();
     private final CustomSpringLogbackAppender appender;
+    private final StorageService storageService;
+
+    private Set<String> disabledCronSteps = new HashSet<>();
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -68,21 +74,33 @@ public class TaskManager {
                        @Autowired List<Step<?>> tasks,
                        @Autowired QualifierInspector qualifierInspector,
                        @Autowired StepRunStorage stepRunStorage,
-                       @Autowired CustomSpringLogbackAppender appender) {
+                       @Autowired CustomSpringLogbackAppender appender,
+                       @Autowired StorageService storageService) {
         this.tasks = tasks;
         this.scheduler = scheduler;
         this.qualifierInspector = qualifierInspector;
         this.stepRunStorage = stepRunStorage;
         this.appender = appender;
+        this.storageService = storageService;
         injectPostAutowiredDependencies();
 
         buildTaskDependencyTree();
+
+        storageService.read("disabledCronSteps.json").ifPresent(json -> {
+            try {
+                disabledCronSteps = objectMapper.readValue(json, new TypeReference<>() {});
+            } catch (JsonProcessingException e) {
+                log.error("Failed to read disabled cron steps", e);
+            }
+        });
 
         scheduler.ifPresent(taskScheduler -> rootTasks.forEach(rootTask -> {
             if (rootTask.getClass().isAnnotationPresent(StepSchedule.class)) {
                 StepSchedule runAt = rootTask.getClass().getAnnotation(StepSchedule.class);
                 taskScheduler.schedule(() -> {
-                    execute(rootTask, null, true, "Cron", "images/source-cron.svg");
+                    if (! disabledCronSteps.contains(qualifierInspector.getQualifierForBean(rootTask))) {
+                        execute(rootTask, null, true, "Cron", "images/source-cron.svg");
+                    }
                 }, new CronTrigger(runAt.value()));
             }
         }));
@@ -145,6 +163,23 @@ public class TaskManager {
                 }
             }
         }
+    }
+
+    public void setCronEnabled(Step<?> step, boolean enabled) {
+        if (enabled) {
+            disabledCronSteps.remove(qualifierInspector.getQualifierForBean(step));
+        } else {
+            disabledCronSteps.add(qualifierInspector.getQualifierForBean(step));
+        }
+        try {
+            storageService.store("disabledCronSteps.json", objectMapper.writeValueAsString(disabledCronSteps));
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public boolean isCronEnabled(Step<?> step) {
+        return !disabledCronSteps.contains(qualifierInspector.getQualifierForBean(step));
     }
 
     public void loadIdentifiersFor(Step<?> rootStep) {

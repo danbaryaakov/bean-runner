@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.beanrunner.core.Step;
 import org.beanrunner.core.annotations.StepDescription;
 import org.beanrunner.core.annotations.StepName;
+import org.beanrunner.core.annotations.StepSchedule;
 import org.beanrunner.core.annotations.UIConfigurable;
 import org.springframework.stereotype.Component;
 
@@ -17,7 +18,7 @@ import org.springframework.stereotype.Component;
         The task graph will rewind on failures or successful completion, triggering
         resource cleanup if necessary.
         """)
-//@StepSchedule("0 * * * * *")
+@StepSchedule("0 * * * * *")
 public class R1 extends Step<Void> {
 
     @JsonProperty

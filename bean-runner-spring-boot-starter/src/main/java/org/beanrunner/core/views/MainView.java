@@ -323,6 +323,21 @@ public class MainView extends VerticalLayout implements TaskListener, HasDynamic
                     break;
                 }
             }
+
+            if (t.getClass().isAnnotationPresent(StepSchedule.class)) {
+                ToggleButton btnCronEnabled = new ToggleButton("", VaadinIcon.CLOCK.create());
+                if (taskManager.isCronEnabled(t)) {
+                    btnCronEnabled.setToggled(true);
+                } else {
+                    btnCronEnabled.setToggled(false);
+                }
+                btnCronEnabled.addClickListener(e -> {
+                    taskManager.setCronEnabled(t, btnCronEnabled.isToggled());
+                });
+
+                layout.add(btnCronEnabled);
+            }
+
             layout.add(new Button(VaadinIcon.PLAY.create(), e -> {
                 executeTask(t);
             }));
@@ -879,7 +894,7 @@ public class MainView extends VerticalLayout implements TaskListener, HasDynamic
 
         splitLayout.addToSecondary(splitRight);
         splitLayout.setOrientation(SplitLayout.Orientation.HORIZONTAL);
-        splitLayout.setSplitterPosition(20);
+        splitLayout.setSplitterPosition(23);
         splitInner.setSplitterPosition(20);
         add(splitLayout);
         pnlConfiguration.setVisible(false);

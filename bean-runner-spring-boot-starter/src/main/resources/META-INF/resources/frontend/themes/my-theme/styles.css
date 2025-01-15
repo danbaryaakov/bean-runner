@@ -114,7 +114,7 @@ vaadin-split-layout::part(splitter) {
 }
 
 .toggled {
-    background: linear-gradient(#62a1dc, #4b89ba);
+    background: linear-gradient(#90c6f3, #73b4ea);
     color: white;
 }
 
