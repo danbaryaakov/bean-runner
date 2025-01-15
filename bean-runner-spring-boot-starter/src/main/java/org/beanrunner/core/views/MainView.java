@@ -1226,7 +1226,7 @@ public class MainView extends VerticalLayout implements TaskListener, HasDynamic
                 }));
             });
         }
-        if (identifier == selectedIdentifier) {
+        if (identifier == selectedIdentifier && identifier != null) {
             getUI().ifPresent(ui -> ui.access(() -> {
                 diagramView.updateTask(task);
                 btnRewind.setVisible(identifier.isRewindArmed());

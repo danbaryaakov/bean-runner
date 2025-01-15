@@ -176,6 +176,7 @@ public class TaskManager {
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
+        notifyListeners(step, null);
     }
 
     public boolean isCronEnabled(Step<?> step) {
@@ -646,21 +647,23 @@ public class TaskManager {
     public void notifyListeners(Step<?> task, TaskRunIdentifier identifier) {
         listeners.forEach(listener -> listener.taskChanged(task, identifier));
         Step<?> rootStep = getRootTask(task);
-        TaskStatus rootStatus = getTaskStatus(rootStep, identifier, false);
-        if (rootStatus == TaskStatus.SUCCESS || rootStatus == TaskStatus.FAILED) {
+        if (identifier != null) {
+            TaskStatus rootStatus = getTaskStatus(rootStep, identifier, false);
+            if (rootStatus == TaskStatus.SUCCESS || rootStatus == TaskStatus.FAILED) {
 //            log.info("Storing step context for flow {} and identifier {}", getFlowId(rootStep), identifier);
-            String flowId = getFlowId(rootStep);
-            identifier.setFlowStatus(rootStatus);
-            identifier.setTags(getTags(rootStep, identifier).stream().map(TaskTagItem::new).toList());
-            stepRunStorage.storeIdentifier(flowId, rootStep, identifier);
-            flattenTasks(rootStep).forEach(t -> {
-                stepRunStorage.saveStepContext(flowId, t, identifier);
-                appender.storeLogs(flowId, t, identifier);
-            });
-        }
-        if (rootStatus != TaskStatus.RUNNING && rootStatus != TaskStatus.READY && rootStatus != TaskStatus.REWINDING && rootStatus != TaskStatus.PENDING_REWIND) {
-            identifier.setRunning(false);
-            listeners.forEach(listener -> listener.taskChanged(task, identifier));
+                String flowId = getFlowId(rootStep);
+                identifier.setFlowStatus(rootStatus);
+                identifier.setTags(getTags(rootStep, identifier).stream().map(TaskTagItem::new).toList());
+                stepRunStorage.storeIdentifier(flowId, rootStep, identifier);
+                flattenTasks(rootStep).forEach(t -> {
+                    stepRunStorage.saveStepContext(flowId, t, identifier);
+                    appender.storeLogs(flowId, t, identifier);
+                });
+            }
+            if (rootStatus != TaskStatus.RUNNING && rootStatus != TaskStatus.READY && rootStatus != TaskStatus.REWINDING && rootStatus != TaskStatus.PENDING_REWIND) {
+                identifier.setRunning(false);
+                listeners.forEach(listener -> listener.taskChanged(task, identifier));
+            }
         }
     }
 
