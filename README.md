@@ -14,7 +14,7 @@ in the flow, and also provides flow run execution history. It also allows you to
 step parameters at runtime.
 
 The project is still in its early stages, and further development is needed to make it production ready, such as 
-adding security features, handling graceful shutdowns, and some additional required features to make it complete.
+adding security features, flow pause feature, handling graceful shutdowns, and some additional required features to make it complete.
 
 The code is free to use and modify, and contributions are welcome. It is licensed under the LGPL v3.0 license.
 
@@ -358,4 +358,4 @@ public abstract class CreatePubSubTopicStep extends Step<PubSubTopicData> {
 
 We can then create a concrete step that extends this abstract step and provides the project ID and topic ID
 either from a configuration property or from the data of a previous step.
- 
+Of course, we can choose the granularity of the required attributes (for example have the abstract class require a record that contains the relevant attributes).
