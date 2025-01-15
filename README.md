@@ -278,10 +278,13 @@ for cases where you want to wait for some external condition to be satisfied bef
 #### rewind() method
 
 The `rewind()` method (optional) is called when the flow is rewound on failure. This is useful for cleaning up resources that were allocated in the `run()` method.
+
 The flow can also be rewound by adding the `@StepRewindTrigger` annotation to the last step in your flow (or a step that should start the cleanup process). We'll see examples
 of this a bit later. Rewind triggers can be automatic (by default) or manual (requiring the user to initiate the rewind in the UI).
+
 Automatic rewinds are useful for workflows that creates some resources, for example in the cloud, and need to clean them up at the end
 regardless of success or failure.
+
 Manual rewinds are useful, for example, when you build a flow that deploys resources to a cloud environment, and you want to give the user the option to rollback the deployment.
 
 
