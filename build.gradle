@@ -3,7 +3,10 @@ plugins {
     id 'maven-publish'
     id 'java-library'
     id 'io.freefair.lombok' version '6.6'
+    id 'signing'
 }
+
+println "Signing Key ID: ${findProperty('signing.keyId')}"
 
 java {
     toolchain {
@@ -11,20 +14,13 @@ java {
     }
 }
 
-group 'org.bean-runner'
+group = 'org.bean-runner'
+version = '1.0.0' // Replace with your project's version
 
 allprojects {
     repositories {
         mavenLocal()
         mavenCentral()
-//        maven {
-//            name = "GitHubPackages"
-//            url = "https://maven.pkg.github.com/piplcom/maven-packages/"
-//            credentials {
-//                username = project.findProperty("githubUsername") ?: System.getenv("GITHUB_USERNAME")
-//                password = project.findProperty("githubPassword") ?: System.getenv("GITHUB_TOKEN")
-//            }
-//        }
     }
 }
 
@@ -33,75 +29,105 @@ subprojects {
     apply plugin: 'java-library'
     apply plugin: 'io.freefair.lombok'
     apply plugin: 'maven-publish'
+    apply plugin: 'signing'
 
     repositories {
         mavenLocal()
         mavenCentral()
     }
+
     dependencies {
         implementation 'org.apache.commons:commons-lang3:3.17.0'
-
     }
-
 
     test {
         useJUnitPlatform()
     }
 
-
     publishing {
-        repositories {
-            mavenLocal()
-            mavenCentral()
-        }
-
         publications {
             mavenJava(MavenPublication) {
-                groupId 'org.bean-runner'
                 from components.java
+                groupId = 'org.bean-runner' // Replace with your group ID
+                artifactId = project.name // Uses the subproject's name as the artifactId
+                version = project.version  // Replace with your version
+            }
+        }
+        repositories {
+            maven {
+                name = "GitHubPackages"
+                url = uri("https://maven.pkg.github.com/danbaryaakov/bean-runner")
+                credentials {
+                    username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_PERSONAL_USERNAME")
+                    password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_PERSONAL_TOKEN")
+                }
             }
         }
     }
 
-    configurations {
-        compileOnly {
-            extendsFrom annotationProcessor
-        }
-    }
+
+//    publishing {
+//        publications {
+//            mavenJava(MavenPublication) {
+//                from components.java
+//                groupId = 'org.bean-runner'
+//                artifactId = project.name
+//                version = project.version
+//
+//                pom {
+//                    name = 'bean-runner'
+//                    description = 'Bean Runner'
+//                    url = 'https://www.bean-runner.org'
+//
+//                    licenses {
+//                        license {
+//                            name = 'LGPL v3 License'
+//                            url = 'https://www.gnu.org/licenses/lgpl-3.0.txt'
+//                        }
+//                    }
+//
+//                    developers {
+//                        developer {
+//                            id = 'danbaryaakov'
+//                            name = 'Dan Bar-Yaakov'
+//                            email = 'danbaryak@gmail.com'
+//                        }
+//                    }
+//
+//                    scm {
+//                        connection = 'scm:git:git://github.com/danbaryaakov/bean-runner.git'
+//                        developerConnection = 'scm:git:ssh://github.com:danbaryaakov/bean-runner.git'
+//                        url = 'https://github.com/danbaryaakov/bean-runner'
+//                    }
+//                }
+//            }
+//        }
+//
+//        repositories {
+//            maven {
+//                name = 'OSSRH'
+//                url = 'https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/'
+//                credentials {
+//                    username = project.findProperty("ossrhUsername") ?: System.getenv("OSSRH_USERNAME")
+//                    password = project.findProperty("ossrhPassword") ?: System.getenv("OSSRH_PASSWORD")
+//                }
+//            }
+//        }
+//    }
+
+//    signing {
+//        useInMemoryPgpKeys(
+//                findProperty('signingKey') ?: System.getenv('SIGNING_KEY'),
+//                findProperty('signingPassword') ?: System.getenv('SIGNING_PASSWORD')
+//        )
+//        sign publishing.publications.mavenJava
+//    }
 }
 
-configurations {
-    compileOnly {
-        extendsFrom annotationProcessor
-    }
-}
-
-tasks.test {
+tasks.withType(Test) {
     useJUnitPlatform()
     testLogging {
         showStandardStreams = true
         events("passed", "skipped", "failed")
     }
 }
-
-//
-//tasks.named("afterReleaseBuild") {
-//    dependsOn(":bigtable:publishMavenJavaPublicationToMavenRepository")
-//    dependsOn(":pubsub:publishMavenJavaPublicationToMavenRepository")
-//    dependsOn(":storage:publishMavenJavaPublicationToMavenRepository")
-//    dependsOn(":utils:publishMavenJavaPublicationToMavenRepository")
-//    dependsOn(":id6:publishMavenJavaPublicationToMavenRepository")
-//    dependsOn(":stream:publishMavenJavaPublicationToMavenRepository")
-//    dependsOn(":records:publishMavenJavaPublicationToMavenRepository")
-//    dependsOn(":aerospike:publishMavenJavaPublicationToMavenRepository")
-//    dependsOn(":model:publishMavenJavaPublicationToMavenRepository")
-//    dependsOn(":datalake:publishMavenJavaPublicationToMavenRepository")
-//    dependsOn(':persist_profiles:publishMavenJavaPublicationToMavenRepository')
-//    dependsOn(':pse:publishMavenJavaPublicationToMavenRepository')
-//    dependsOn(':encryptor:publishMavenJavaPublicationToMavenRepository')
-//    dependsOn(':testcontainers:publishMavenJavaPublicationToMavenRepository')
-//}
-
-
-
-
