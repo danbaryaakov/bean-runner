@@ -18,4 +18,4 @@ adding security features, flow pause feature, handling graceful shutdowns, and s
 
 The code is free to use and modify, and contributions are welcome. It is licensed under the LGPL v3.0 license.
 
-[Getting Started](site/GETTING_STARTED.md)
+## [Quick Start Guide](site/GETTING_STARTED.md)
