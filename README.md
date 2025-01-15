@@ -4,7 +4,7 @@
 BeanRunner is a workflow automation orchestrator in a spring boot starter. Once added to a 
 spring boot project, it allows you to define flows by creating interconnected spring beans annotated with
 run dependency annotations such as @OnSuccess, @OnComplete, @OnFailure etc. The flows form a DAG (Directed Acyclic Graph) that can then
-be triggered by the UI, by a defining a CRON schedule, or invoked programmatically.
+be triggered by the UI, by defining a CRON schedule, or invoked programmatically.
 
 BeanRunner's flow executor handles parallelism, retries, error handling, as well
 as resource cleanup on failures and conditionally on success with a 'rewind' feature.
