@@ -31,8 +31,9 @@ maven {
 
 Add the following dependency in the `dependencies` section:
 ```groovy
-implementation 'org.bean-runner:bean-runner-spring-boot-starter:0.0.3'
+implementation 'org.bean-runner:bean-runner-spring-boot-starter:<use latest version>'
 ```
+(Replace \<use latest version\> with the latest version of the BeanRunner starter)    
 
 ### Configure Your Main Application Class
 
