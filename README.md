@@ -201,4 +201,6 @@ To focus the view on the entire flow, click the 'Fit to View' button <img src="/
 
 #### Running the Flow
 
-Click the Play button next to the flow name to run the flow. Select the step you want to focus on to see the logs and status of that step.
+Click the Play button next to the flow name to run the flow. This will create a new flow "Run" (shown in the Runs section) and execute the flow.
+Select the step you want to focus on to see the logs and status of that step.
+
