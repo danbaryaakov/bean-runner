@@ -243,7 +243,7 @@ We'll see examples of flows with input parameters later.
 
 ### Step run dependencies
 
-Steps are run when all run dependencies are satisfied. A run dependency is defined by annotating 
+Steps are run when all (or one of, depending on the trigger logic) run dependencies are satisfied. A run dependency is defined by annotating 
 the field of the previous step with one of the following annotations:
 * `@OnSuccess` - The step runs when the previous step completes successfully.
 * `@OnComplete` - The step runs when the previous step completes, regardless of success or failure.
@@ -275,6 +275,7 @@ Every step has an optional `run()` method which executes when all the run depend
 The `probe()` method (optional) is called after a successful call to `run()` periodically until it returns `true`. This is 
 for cases where you want to wait for some external condition to be satisfied before proceeding to the next step.
 
+You can control the probe interval by calling `setProbeInterval(long interval, TimeUnit unit)` method in the `run()` method and also control the timeout by calling `setProbeTimeout(Duration timeout)` method.
 ### rewind() method
 
 The `rewind()` method (optional) is called when the flow is rewound on failure. This is useful for cleaning up resources that were allocated in the `run()` method.
@@ -286,6 +287,16 @@ Automatic rewinds are useful for flows that create some temporary resources, for
 regardless of success or failure.
 
 Manual rewinds are useful, for example, when you build a flow that deploys resources to a cloud environment, and you want to give the user the option to rollback the deployment when they wish.
+
+## Step Retries
+
+By default, steps are executed with no retry. You can specify a retry configuration for a step using the following annotation on the step class:
+    
+```java
+@StepRetry(maxRetries = 3, delay = 5, delayUnit = TimeUnit.SECONDS)
+```
+
+With this annotation in place, the step will be retried 3 times with a delay of 5 seconds between each retry. The delay is optional and defaults to 0.
 
 
 ## Step Configuration Properties
