@@ -278,7 +278,8 @@ By default, steps are executed with no retry. You can specify a retry configurat
 @StepRetry(maxRetries = 3, delay = 5, delayUnit = TimeUnit.SECONDS)
 ```
 
-With this annotation in place, the step will be retried 3 times with a delay of 5 seconds between each retry. The delay is optional and defaults to 0.
+With this annotation in place, the step will be retried 3 times with a delay of 5 seconds between each retry. The options above are the 
+default when this annotation is added without any parameters.
 
 
 ## Step Configuration Properties
