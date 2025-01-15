@@ -158,7 +158,7 @@ public class Step4 extends Step<Void> {
     private Step3 step3;
     
     public void run() {
-        log.info("This step after steps 2 and 3 are complete");
+        log.info("This step will run after steps 2 and 3 are complete");
     }
 
 }
