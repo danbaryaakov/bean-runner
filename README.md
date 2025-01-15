@@ -194,9 +194,8 @@ On the left side of the screen you should see the new flow you created under the
 #### Organizing Steps in the UI
 
 Notice that the first time steps appear in the UI, they can move freely on the screen so you can drag them around to organize as you like. 
-It is recommended that the first step (marked as a star) is at the left side of the screen. 
-Once you position the steps in the relative location, click the 'Pin' button on the top right toolbar <img src="/site/pin.png" alt="Pin" width="25" height="25"> to lock them in place and store their positions.
-Note that every time you change the positions, click the 'Pin' button again to store the positions.
+Click the 'Pin' button on the top right toolbar <img src="/site/pin.png" alt="Pin" width="25" height="25"> to stop them from moving around. This will also store the positions.
+Note that every time you change the positions, click the 'Pin' button again to store the modified positions.
 
 To focus the view on the entire flow, click the 'Fit to View' button <img src="/site/fit.png" alt="Fit" width="25" height="25"> on the top right toolbar.
 
