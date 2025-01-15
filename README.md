@@ -91,12 +91,12 @@ This will store all bean runner data in a directory called `bean-runner-files` i
 Adjust this as necessary if you want to use a different location.
 
 
-### First Steps
+## First Steps
 
 The main building block of a flow is a `Step`. A flow is basically a collection of steps that are connected to each other. Each step is a spring bean extending the `Step` class.
 The step that has no run dependencies is the first step in the flow.
 
-#### Create some Steps
+### Create some Steps
 Let's create some steps and see how they appear in the BeanRunner UI. Create the following classes somewhere in your project, then we'll dive into the details of each class:
     
 ```java
@@ -182,7 +182,7 @@ public class Step4 extends Step<Void> {
 }
 ```
 
-#### Run the Application
+### Run the Application
 
 Run the application (preferably in debug mode so you can make some changes and see them reflected in the UI without restarting the application)
 Then, open a browser and navigate to `http://localhost:8080`
@@ -191,7 +191,7 @@ On the left side of the screen you should see the new flow you created under the
 
 ![Hello World](/site/hello-world.png)
 
-#### Organizing Steps in the UI
+### Organizing Steps in the UI
 
 Notice that the first time steps appear in the UI, they can move freely on the screen so you can drag them around to organize as you like. 
 Click the 'Pin' button on the top right toolbar <img src="/site/pin.png" alt="Pin" width="25" height="25"> to stop them from moving around. This will also store the positions.
@@ -199,12 +199,12 @@ Note that every time you change the positions, click the 'Pin' button again to s
 
 To focus the view on the entire flow, click the 'Fit to View' button <img src="/site/fit.png" alt="Fit" width="25" height="25"> on the top right toolbar.
 
-#### Running the Flow
+### Running the Flow
 
 Click the Play button next to the flow name to run the flow. This will create a new flow "Run" (shown in the Runs section) and execute the flow.
 Select the step you want to focus on to see the logs and status of that step.
 
-#### Making some changes
+### Making some changes
 
 Let's break a step. Change `Step2`'s run() method to the following:
 
@@ -225,11 +225,11 @@ Run The flow again. You should see that the flow execution stops at `Step2` and 
 
 Select the failed step (Step 2) to view the error in the logs pane.
 
-### The Step Class
+## The Step Class
 
 Let's go through the details of the Step class and see all it can do.
 
-#### Step Data
+### Step Data
 
 The `Step` class is the base class for all steps in the flow. It is a generic class that takes a type parameter representing the data that the step holds (or Void if the step doesn't hold any data).
 Every step that is "downstream" of the step (executes after it) can naturally autowire the step and call its getData() method to retrieve the stored data for the *current run*.
@@ -241,7 +241,7 @@ Therefore, do not store any run specific data anywhere else in the step class, a
 If the first step in your flow has data generic type defined, it is considered the input parameter for your flow and is passed from the caller and stored in the first step's data automatically.
 We'll see examples of flows with input parameters later.
 
-#### Step run dependencies
+### Step run dependencies
 
 Steps are run when all run dependencies are satisfied. A run dependency is defined by annotating 
 the field of the previous step with one of the following annotations:
@@ -251,7 +251,7 @@ the field of the previous step with one of the following annotations:
 * `@OnFailure` - The step runs when the previous step fails and only it. (Not yet implemented)
 * `@OnDownstreamFailure` - The step runs when any step after it in the flow fails. (Not yet implemented)
 
-#### Step Trigger Logic
+### Step Trigger Logic
 
 The step trigger logic type determines if it should run when all run dependencies are satisfied, or if
 it should run when any of the run dependencies are satisfied. The default is `ALL` which means the step runs when all run dependencies are satisfied.
@@ -262,20 +262,20 @@ To change the trigger logic to `OR`, add the following annotation to the step:
 
 We'll see how the `OR` logic works a bit later when we get to branching.
 
-#### Step Result
+### Step Result
 Each step can call the `setResult(String result)` method to store a result. This is mainly used for branching.
 Dependent steps can then specify the result in the dependency annotation to run only when the result matches (for example `@OnSuccess("branch_1"))`
 
-#### run() method
+### run() method
 
 Every step has an optional `run()` method which executes when all the run dependencies of that step are satisfied.
 
-#### probe() method
+### probe() method
 
 The `probe()` method (optional) is called after a successful call to `run()` periodically until it returns `true`. This is 
 for cases where you want to wait for some external condition to be satisfied before proceeding to the next step.
 
-#### rewind() method
+### rewind() method
 
 The `rewind()` method (optional) is called when the flow is rewound on failure. This is useful for cleaning up resources that were allocated in the `run()` method.
 
@@ -288,7 +288,7 @@ regardless of success or failure.
 Manual rewinds are useful, for example, when you build a flow that deploys resources to a cloud environment, and you want to give the user the option to rollback the deployment when they wish.
 
 
-### Step Configuration Properties
+## Step Configuration Properties
 
 Steps can have configuration properties that can be set in the UI. 
 Let's add a configuration property to `Step2` that will determine if we fail the step or let it succeed:
@@ -326,7 +326,7 @@ Step configuration properties are stored persistently and once set they apply to
 It is advisable to keep most of the configurations for a flow on the first step (or a major step) and then inject that step to the other steps that need the configuration, so that it's 
 easy to find and manage the configurations for the flow.
 
-### Defining Reusable Steps
+## Defining Reusable Steps
 
 The framework provides a way to define reusable steps as well as reusable step groups (a collection of interconnected steps that can be reused in any flow).
 
@@ -334,7 +334,6 @@ Here is an example of a reusable step, defined as an abstract class:
 
 ```java
 @Slf4j
-@RequiredArgsConstructor
 public abstract class CreatePubSubTopicStep extends Step<PubSubTopicData> {
     
     @Override
