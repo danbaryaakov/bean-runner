@@ -262,19 +262,26 @@ To change the trigger logic to `OR`, add the following annotation to the step:
 
 We'll see how the `OR` logic works a bit later when we get to branching.
 
-#### Run method
+#### Step Result
+Each step can call the `setResult(String result)` method to store a result. This is mainly used for branching.
+Dependent steps can then specify the result in the dependency annotation to run only when the result matches (for example `@OnSuccess("branch_1"))`
+
+#### run() method
 
 Every step has an optional `run()` method which executes when all the run dependencies of that step are satisfied.
 
-#### Probe method
+#### probe() method
 
 The `probe()` method (optional) is called after a successful call to `run()` periodically until it returns `true`. This is 
 for cases where you want to wait for some external condition to be satisfied before proceeding to the next step.
 
-#### Rewind method
+#### rewind() method
 
 The `rewind()` method (optional) is called when the flow is rewound on failure. This is useful for cleaning up resources that were allocated in the `run()` method.
 The flow can also be rewound by adding the `@StepRewindTrigger` annotation to the last step in your flow (or a step that should start the cleanup process). We'll see examples
-of this a bit later.
+of this a bit later. Rewind triggers can be automatic (by default) or manual (requiring the user to initiate the rewind in the UI).
+Automatic rewinds are useful for workflows that creates some resources, for example in the cloud, and need to clean them up at the end
+regardless of success or failure.
+Manual rewinds are useful, for example, when you build a flow that deploys resources to a cloud environment, and you want to give the user the option to rollback the deployment.
 
 
