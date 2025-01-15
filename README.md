@@ -227,12 +227,12 @@ Select the failed step (Step 2) to view the error in the logs pane.
 
 ### The Step Class
 
-Let's now explain the details of the Step class and all it can do.
+Let's go through the details of the Step class and see all it can do.
 
 #### Step Data
 
 The `Step` class is the base class for all steps in the flow. It is a generic class that takes a type parameter representing the data that the step holds (or Void if the step doesn't hold any data).
-Every step that is "downstream" of the step (executes after it) can naturally autowire the step and call its getData() method to retrieve the stored data.
+Every step that is "downstream" of the step (executes after it) can naturally autowire the step and call its getData() method to retrieve the stored data for the *current run*.
 
 It is important to note that the `run()` method is called in the context of a current run. There can be multiple runs happening at the same time. When you 
 call `setData()` in the run method (or other methods to be explained next), the data is stored for the current run.
@@ -282,9 +282,78 @@ The `rewind()` method (optional) is called when the flow is rewound on failure. 
 The flow can also be rewound by adding the `@StepRewindTrigger` annotation to the last step in your flow (or a step that should start the cleanup process). We'll see examples
 of this a bit later. Rewind triggers can be automatic (by default) or manual (requiring the user to initiate the rewind in the UI).
 
-Automatic rewinds are useful for workflows that creates some resources, for example in the cloud, and need to clean them up at the end
+Automatic rewinds are useful for flows that create some temporary resources, for example in the cloud, and need to clean them up at the end
 regardless of success or failure.
 
-Manual rewinds are useful, for example, when you build a flow that deploys resources to a cloud environment, and you want to give the user the option to rollback the deployment.
+Manual rewinds are useful, for example, when you build a flow that deploys resources to a cloud environment, and you want to give the user the option to rollback the deployment when they wish.
 
 
+### Step Configuration Properties
+
+Steps can have configuration properties that can be set in the UI. 
+Let's add a configuration property to `Step2` that will determine if we fail the step or let it succeed:
+
+```java
+@Slf4j
+@Component
+public class Step2 extends Step<Void> {
+
+    @JsonProperty
+    @UIConfigurable("Should fail")
+    private boolean shouldFail = false;
+    
+    @Autowired
+    @OnSuccess
+    private Step1 step1;
+    
+    public void run() {
+        log.info("Step 1 says " + step1.getData().message());
+        if (shouldFail) {
+            throw new RuntimeException("BOOM!");
+        }
+    }
+
+}
+```
+
+Rerun the application (adding fields and methods aren't supported by live reload), select the flow and Step 2 in the diagram
+and you should see a checkbox appear on the right side panel with the label "Should fail". You can check or uncheck it to make the step fail or succeed.
+
+![Configurable Step](/site/configurable-property.png)
+
+It is advisable to keep most of the configurations for a flow on the first step (or a major step) and then inject that step to the other steps that need the configuration, so that it's 
+easy to find and manage the configurations for the flow.
+
+### Defining Reusable Steps
+
+The framework provides a way to define reusable steps as well as reusable step groups (a collection of interconnected steps that can be reused in any flow).
+
+Here is an example of a reusable step, defined as an abstract class:
+
+```java
+@Slf4j
+@RequiredArgsConstructor
+public abstract class CreatePubSubTopicStep extends Step<PubSubTopicData> {
+    
+    @Override
+    public void run() {
+        String topicId = getTopicId();
+        String projectId = getProjectId();
+        // create the topic, then call the setData() method with the topic details
+        // so that they are available to the next steps
+    }
+    
+    @Override
+    public void rewind() {
+        // delete the topic
+    }
+    
+    protected abstract String getProjectId();
+    protected abstract String getTopicId();
+
+}
+```
+
+We can then create a concrete step that extends this abstract step and provides the project ID and topic ID
+either from a configuration property or from the data of a previous step.
+ 
