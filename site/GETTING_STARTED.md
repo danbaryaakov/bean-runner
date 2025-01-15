@@ -283,7 +283,7 @@ default when this annotation is added without any parameters.
 
 ## Step Status
 
-Each step has a status (relevant to the selected run) that is reflected in the diagram with a specific color. Here are the step statuses and their colors:
+Each step has a status (relevant to a specific run) that is reflected in the diagram with a specific color when selecting the run. Here are the step statuses and their colors:
 
 * Not started (white)
 * Running (yellow)
