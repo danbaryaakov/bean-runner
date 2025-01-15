@@ -321,7 +321,8 @@ and you should see a checkbox appear on the right side panel with the label "Sho
 
 ![Configurable Step](/site/configurable-property.png)
 
-Step configuration properties are stored persistently and once set they apply to all future runs of the flow.
+Step configuration properties are stored persistently and once set they apply immediately to all runs of the flow.
+Therefore, it is best to not use configurations properties on rewind, but to keep the data of the resource that requires cleanup in the step data itself.
 
 It is advisable to keep most of the configurations for a flow on the first step (or a major step) and then inject that step to the other steps that need the configuration, so that it's 
 easy to find and manage the configurations for the flow.
@@ -346,7 +347,7 @@ public abstract class CreatePubSubTopicStep extends Step<PubSubTopicData> {
     
     @Override
     public void rewind() {
-        // delete the topic
+        // delete the topic according to what's stored in the data
     }
     
     protected abstract String getProjectId();
