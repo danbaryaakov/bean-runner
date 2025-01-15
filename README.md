@@ -204,3 +204,23 @@ To focus the view on the entire flow, click the 'Fit to View' button <img src="/
 Click the Play button next to the flow name to run the flow. This will create a new flow "Run" (shown in the Runs section) and execute the flow.
 Select the step you want to focus on to see the logs and status of that step.
 
+#### Making some changes
+
+Let's break a step. Change `Step2`'s run() method to the following:
+
+```java
+
+public void run() {
+    log.info("Step 1 says " + step1.getData().message());
+    throw new RuntimeException("BOOM!");
+}
+
+```
+
+Save the file. If you're using Intellij IDEA with the `Vaadin` plugin, the class will reload without having to restart the application.
+
+Run The flow again. You should see that the flow execution stops at `Step2` and the status of the flow is `FAILED` indicated by a red X icon next to the Run name.
+
+![Failed Run](/site/hello-world-modified.png)
+
+Select the failed step (Step 2) to view the error in the logs pane.
