@@ -84,7 +84,7 @@ bean-runner:
   storage:
     type: local
     local:
-    path: bean-runner-files
+      path: bean-runner-files
 ```
 
 This will store all bean runner data in a directory called `bean-runner-files` in the root of your project.
