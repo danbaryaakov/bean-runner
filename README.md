@@ -34,7 +34,7 @@ BeanRunner uses the Vaadin framework for it's UI layer, so you need to create a 
 
 ### Add the BeanRunner Dependency
 
-Add the GitHub packages repository to your project's build.gradle file:
+Add the GitHub packages repository in your project's build.gradle file's `repositories` section:
 ```groovy
 maven {
     name = "GitHubPackages"
@@ -48,7 +48,7 @@ maven {
 
 (Make sure you have a GitHub personal access token with read:packages scope, and set the GITHUB_USERNAME and GITHUB_TOKEN environment variables)
 
-Add the following dependency to your project's build.gradle file:
+Add the following dependency in the `dependencies` section:
 ```groovy
 implementation 'org.bean-runner:bean-runner-spring-boot-starter:0.0.3'
 ```
