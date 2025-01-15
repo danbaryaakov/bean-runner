@@ -352,4 +352,4 @@ public abstract class CreatePubSubTopicStep extends Step<PubSubTopicData> {
 
 We can then create a concrete step that extends this abstract step and provides the project ID and topic ID
 either from a configuration property or from the data of a previous step.
-Of course, we can choose the granularity of the required attributes (for example have the abstract class require a record that contains the relevant attributes).
+Of course, we can choose the granularity of the required attributes (for example have the abstract class an object implementing an interface that contains the relevant attributes).
