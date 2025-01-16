@@ -368,6 +368,21 @@ public class Step3 extends Step<Void> {
 }
 ```
 
+## Step Name and Description
+
+You can set a name and description for each step by adding the `@StepName` and `@StepDescription` annotations to the step class.
+The description will appear in the right side panel when selecting the step.
+
+## Step Icons
+
+You can set an icon for each step by adding the `@StepIcon` annotation to the step class. Add the icons (preferably in SVG format) to the `META-INF/resources` folder in your resources directory.
+For example, if you've added the icon at `META-INF/resources/icons/my-icon.svg`, you can set it in the step class like this:
+
+```java
+@StepIcon("icons/my-icon.svg")
+```
+Icons can also be added to a step group by specifying the icon path in the `@StepGroup` icon annotation parameter.
+
 ## Defining Reusable Steps
 
 The framework provides a way to define reusable steps as well as reusable step groups (a collection of interconnected steps that can be reused in any flow).
