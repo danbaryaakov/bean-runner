@@ -183,7 +183,7 @@ To focus the view on the entire flow, click the 'Fit to View' button <img src="/
 
 As your flows become larger and more complex, it is important to organize the steps in a way that makes it easy to understand the flow logic and develop a visual memory of the flow.
 
-You can also group steps together by adding the `@StepGroup` annotation several steps that provide a common functionality.
+You can also group steps together by adding the `@StepGroup` annotation to several steps that provide a common functionality.
 The UI will then let you collapse or expand all step groups. Currently only one level of grouping is supported.
 
 ### Running the Flow
