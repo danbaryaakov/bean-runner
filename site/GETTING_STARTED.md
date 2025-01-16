@@ -33,7 +33,7 @@ Add the following dependency in the `dependencies` section:
 ```groovy
 implementation 'org.bean-runner:bean-runner-spring-boot-starter:<use latest version>'
 ```
-Replace \<use latest version\> with the latest version of the BeanRunner starter shown in https://github.com/danbaryaakov/bean-runner/packages/2372385    
+Replace \<use latest version\> with the latest version of the BeanRunner starter shown [Here](https://github.com/danbaryaakov/bean-runner/packages/2372385)     
 
 ### Configure Your Main Application Class
 
