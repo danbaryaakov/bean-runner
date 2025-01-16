@@ -140,7 +140,7 @@ public class Step3 extends Step<Void> {
     private Step1 step1;
     
     public void run() {
-        log.info("This step happens in parallel to step 2");
+        log.info("This runs in parallel to step 2");
     }
 
 }
@@ -159,7 +159,7 @@ public class Step4 extends Step<Void> {
     private Step3 step3;
     
     public void run() {
-        log.info("This step will run after steps 2 and 3 are complete");
+        log.info("This step will run after steps 2 and 3 are completed successfully");
     }
 
 }
@@ -191,6 +191,8 @@ The UI will then let you collapse or expand all step groups. Currently only one 
 
 Click the Play button next to the flow name to run the flow. This will create a new flow "Run" (shown in the Runs section) and execute the flow.
 Select the step you want to focus on to see the logs and status of that step.
+
+If you want to see the step transitions clearly, add some sleep in each of step's `run()` method.
 
 ### Making some changes
 
