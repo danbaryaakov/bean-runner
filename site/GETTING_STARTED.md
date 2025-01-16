@@ -181,6 +181,11 @@ Note that every time you change the positions, click the 'Pin' button again to s
 
 To focus the view on the entire flow, click the 'Fit to View' button <img src="/site/fit.png" alt="Fit" width="25" height="25"> on the top right toolbar.
 
+As your flows become larger and more complex, it is important to organize the steps in a way that makes it easy to understand the flow logic and develop a visual memory of the flow.
+
+You can also group steps together by adding the `@StepGroup` annotation several steps that provide a common functionality.
+The UI will then let you collapse or expand all step groups. Currently only one level of grouping is supported.
+
 ### Running the Flow
 
 Click the Play button next to the flow name to run the flow. This will create a new flow "Run" (shown in the Runs section) and execute the flow.
