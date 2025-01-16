@@ -339,6 +339,35 @@ Therefore, it is best to not use configurations properties on rewind, but to kee
 It is advisable to keep most of the configurations for a flow on the first step (or a major step) and then inject that step to the other steps that need the configuration, so that it's
 easy to find and manage the configurations for the flow.
 
+### Default configurations from the application.yml file
+
+You can set default values for configuration properties in the `application.yml` file. Let's add a databaseUrl property to 
+the `HelloWorld` class to emulate a configurable property:
+
+```java
+@Slf4j
+@Getter
+@Setter
+@Component
+@ConfigurationProperties("hello-world")
+public class HelloWorld extends Step<Void> {
+
+    @JsonProperty
+    @UIConfigurable("Database URL")
+    private String databaseUrl;
+
+    // rest of implementation ...
+    
+}
+```
+
+Then in your `application.yml` file, add the following:
+
+```yaml
+hello-world:
+  database-url: "jdbc:postgresql://localhost:5432/hello-world"
+```
+
 ### Step Groups
 You can group steps together in the UI by adding the `@StepGroup` annotation to the steps you want to group together.
 The UI will then let you collapse or expand all step groups. Currently only one level of grouping is supported.
