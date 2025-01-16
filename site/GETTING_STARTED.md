@@ -364,3 +364,17 @@ public abstract class CreatePubSubTopicStep extends Step<PubSubTopicData> {
 We can then create a concrete step that extends this abstract step and provides the project ID and topic ID
 either from a configuration property or from the data of a previous step.
 Of course, we can choose the granularity of the required attributes (for example have the abstract class require an object implementing an interface that contains the relevant attributes).
+
+## Scheduling a flow for execution
+
+Once you've created a flow, you can easily configure it to be executed by a CRON schedule periodically using the `@StepSchedule` annotation on the first step in the flow:
+
+```java
+@StepSchedule("0 * * * * *")
+public class HelloWorld extends Step<Void> {
+    // rest of implementation
+}
+```    
+
+This will schedule the flow to run every minute. Use spring format CRON expressions.
+You can then enable or disable the scheduled execution in the UI using the clock icon that will appear next to the flow name.
