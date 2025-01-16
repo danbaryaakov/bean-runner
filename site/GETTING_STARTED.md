@@ -184,33 +184,8 @@ To focus the view on the entire flow, click the 'Fit to View' button <img src="/
 
 As your flows become larger and more complex, it is important to organize the steps in a way that makes it easy to understand the flow logic and develop a visual memory of the flow.
 
-You can also group steps together by adding the `@StepGroup` annotation to several steps that provide a common functionality.
-The UI will then let you collapse or expand all step groups. Currently only one level of grouping is supported.
+You can also group steps together by adding the `@StepGroup` annotation to several steps that provide a common functionality, as will be explained further on.
 
-The `@StepGroup` annotation requires at a minimum a globally unique (in your current project) integer value as the group ID. 
-Let's group the two parallel steps together::
-
-```java
-public class MyStepGroups {
-    public static final int MY_GROUP = 1;
-}
-```
-```java
-@Slf4j
-@Component
-@StepGroup(value = MyStepGroups.MY_GROUP, name = "My Group")
-public class Step2 extends Step<Void> {
-    // rest of implementation ...
-}
-```
-```java
-@Slf4j
-@Component
-@StepGroup(MyStepGroups.MY_GROUP)
-public class Step3 extends Step<Void> {
-    // rest of implementation ...
-}
-```
 ### Running the Flow
 
 Click the Play button next to the flow name to run the flow. This will create a new flow "Run" (shown in the Runs section) and execute the flow.
@@ -363,6 +338,35 @@ Therefore, it is best to not use configurations properties on rewind, but to kee
 
 It is advisable to keep most of the configurations for a flow on the first step (or a major step) and then inject that step to the other steps that need the configuration, so that it's
 easy to find and manage the configurations for the flow.
+
+### Step Groups
+You can group steps together in the UI by adding the `@StepGroup` annotation to the steps you want to group together.
+The UI will then let you collapse or expand all step groups. Currently only one level of grouping is supported.
+
+The `@StepGroup` annotation requires at a minimum a globally unique (in your current project) integer value as the group ID.
+Let's group two steps together::
+
+```java
+public class MyStepGroups {
+    public static final int MY_GROUP = 1;
+}
+```
+```java
+@Slf4j
+@Component
+@StepGroup(value = MyStepGroups.MY_GROUP, name = "My Group")
+public class Step2 extends Step<Void> {
+    // rest of implementation ...
+}
+```
+```java
+@Slf4j
+@Component
+@StepGroup(MyStepGroups.MY_GROUP)
+public class Step3 extends Step<Void> {
+    // rest of implementation ...
+}
+```
 
 ## Defining Reusable Steps
 
