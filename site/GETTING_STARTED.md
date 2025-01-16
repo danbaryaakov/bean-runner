@@ -70,7 +70,8 @@ bean-runner:
 ```
 
 This will store all bean runner data in a directory called `bean-runner-files` in the root of your project.
-Adjust this as necessary if you want to use a different location.
+Adjust this as necessary if you want to use a different location. If you choose to leave it under your project directory, add it
+to the `.gitignore` file to avoid committing it to your repository.
 
 
 ## First Steps
