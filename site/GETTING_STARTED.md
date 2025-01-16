@@ -187,6 +187,30 @@ As your flows become larger and more complex, it is important to organize the st
 You can also group steps together by adding the `@StepGroup` annotation to several steps that provide a common functionality.
 The UI will then let you collapse or expand all step groups. Currently only one level of grouping is supported.
 
+The `@StepGroup` annotation requires at a minimum a globally unique (in your current project) integer value as the group ID. 
+Let's group the two parallel steps together::
+
+```java
+public class MyStepGroups {
+    public static final int MY_GROUP = 1;
+}
+```
+```java
+@Slf4j
+@Component
+@StepGroup(value = MyStepGroups.MY_GROUP, name = "My Group")
+public class Step2 extends Step<Void> {
+    // rest of implementation ...
+}
+```
+```java
+@Slf4j
+@Component
+@StepGroup(MyStepGroups.MY_GROUP)
+public class Step3 extends Step<Void> {
+    // rest of implementation ...
+}
+```
 ### Running the Flow
 
 Click the Play button next to the flow name to run the flow. This will create a new flow "Run" (shown in the Runs section) and execute the flow.
