@@ -90,7 +90,7 @@ public class LocalStorageService implements StorageService, InitializingBean {
                 result.add(entry.getFileName().toString());
             }
         } catch (IOException | DirectoryIteratorException e) {
-            log.error("Error reading directory: {}", e.getMessage());
+//            log.error("Error reading directory: {}", e.getMessage());
         }
 
         return result;

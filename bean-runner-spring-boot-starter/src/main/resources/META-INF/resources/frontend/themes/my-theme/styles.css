@@ -8,7 +8,7 @@
 
 html {
     /*--header-background: linear-gradient(0deg, rgb(229, 242, 247) 0%, rgb(206, 225, 235) 4%, rgb(196, 206, 216) 6%, rgba(212,236,255,1) 6%, rgba(193,227,252,1) 85%, rgba(250,255,255,1) 100%);*/
-    --header-background: linear-gradient(0deg, rgb(253 254 255) 0%, rgb(186 203 210) 4%, rgb(222 226 230) 6%, rgb(245 245 245) 6%, rgb(213 216 219) 85%, rgba(250, 255, 255, 1) 100%);
+    --header-background: linear-gradient(0deg, rgb(220 220 220) 0%, rgb(239 239 239) 4%, rgb(222 226 230) 6%, rgb(245 245 245) 6%, rgb(213 216 219) 85%, rgba(250, 255, 255, 1) 100%);
     --header-color: #35789c;
     --vaadin-input-field-hover-highlight-opacity: 0;
     --vaadin-input-field-hover-highlight: none;
@@ -57,7 +57,7 @@ html {
 .navbar {
     padding: 10px;
     /*background: linear-gradient(0deg, rgba(32,89,147,1) 0%, rgba(29,76,131,1) 15%, rgba(100,189,212,1) 100%);*/
-    background: #205993FF;
+    background: #285079;
     color: white;
 }
 

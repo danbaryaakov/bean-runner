@@ -18,24 +18,38 @@
  *
  */
 
-package org.beanrunner.core.views.components;
+package org.beanrunner.core;
 
-import org.beanrunner.core.FlowRunIdentifier;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import lombok.Getter;
+import lombok.Setter;
 
-public class RunTagFilter implements Filter<FlowRunIdentifier> {
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 
-    private final boolean showOnlyTaggedRuns;
+@Getter
+@Setter
+public class StepRunContext<D> {
 
-    public RunTagFilter(boolean showOnlyTaggedRuns) {
-        this.showOnlyTaggedRuns = showOnlyTaggedRuns;
-    }
+    private String result = "";
 
-    @Override
-    public boolean filter(FlowRunIdentifier flowRunIdentifier) {
-        if (showOnlyTaggedRuns) {
-            return !flowRunIdentifier.getTags().isEmpty();
-        }
-        return true;
+    private StepStatus status = StepStatus.NOT_STARTED;
+
+    @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "@bodyClass")
+    private D data;
+
+    private long probeInterval = 5;
+
+    private TimeUnit probeTimeUnit = TimeUnit.SECONDS;
+
+    private Duration timeout = Duration.ofMinutes(5);
+
+    @JsonIgnore
+    private Throwable exception;
+
+    public StepRunContext() {
+
     }
 
 }

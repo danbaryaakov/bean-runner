@@ -38,7 +38,7 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public abstract class Step<D> implements ConfigurationSettings {
 
-    private final Map<TaskRunIdentifier, TaskContext<D>> contextMap = new ConcurrentHashMap<>();
+    private final Map<FlowRunIdentifier, StepRunContext<D>> contextMap = new ConcurrentHashMap<>();
 
     @Getter
     @Setter
@@ -55,67 +55,67 @@ public abstract class Step<D> implements ConfigurationSettings {
     }
 
     protected final void setRunProperty(String key, String value) {
-        TaskRunIdentifier taskRunIdentifier = contextMap.keySet().stream().filter(k -> k.getId().equals(MDC.get("runId"))).findFirst().orElse(null);
-        if (taskRunIdentifier != null) {
-            taskRunIdentifier.getRunProperties().put(key, value);
+        FlowRunIdentifier flowRunIdentifier = contextMap.keySet().stream().filter(k -> k.getId().equals(MDC.get("runId"))).findFirst().orElse(null);
+        if (flowRunIdentifier != null) {
+            flowRunIdentifier.getRunProperties().put(key, value);
         }
     }
 
-    public TaskContext<D> getContext(TaskRunIdentifier taskRunIdentifier) {
-        return contextMap.computeIfAbsent(taskRunIdentifier, k -> new TaskContext<>());
+    public StepRunContext<D> getContext(FlowRunIdentifier flowRunIdentifier) {
+        return contextMap.computeIfAbsent(flowRunIdentifier, k -> new StepRunContext<>());
     }
 
-    public TaskStatus getStatus(TaskRunIdentifier taskRunIdentifier) {
-        TaskContext<D> context = contextMap.get(taskRunIdentifier);
-        return context == null ? TaskStatus.NOT_STARTED : context.getStatus();
+    public StepStatus getStatus(FlowRunIdentifier flowRunIdentifier) {
+        StepRunContext<D> context = contextMap.get(flowRunIdentifier);
+        return context == null ? StepStatus.NOT_STARTED : context.getStatus();
     }
 
-    public String getResult(TaskRunIdentifier taskRunIdentifier) {
-        TaskContext<D> context = contextMap.get(taskRunIdentifier);
+    public String getResult(FlowRunIdentifier flowRunIdentifier) {
+        StepRunContext<D> context = contextMap.get(flowRunIdentifier);
         return context == null ? "" : context.getResult();
     }
 
-    public D getData(TaskRunIdentifier taskRunIdentifier) {
-        TaskContext<D> context = contextMap.get(taskRunIdentifier);
+    public D getData(FlowRunIdentifier flowRunIdentifier) {
+        StepRunContext<D> context = contextMap.get(flowRunIdentifier);
         return context == null ? null : context.getData();
     }
 
     public D getData() {
         String runId = MDC.get("runId");
-        return contextMap.get(new TaskRunIdentifier(runId)).getData();
+        return contextMap.get(new FlowRunIdentifier(runId)).getData();
     }
 
     protected void setData(D data) {
         String runId = MDC.get("runId");
-        contextMap.get(new TaskRunIdentifier(runId)).setData(data);
+        contextMap.get(new FlowRunIdentifier(runId)).setData(data);
     }
 
     public String getResult() {
         String runId = MDC.get("runId");
-        return contextMap.get(new TaskRunIdentifier(runId)).getResult();
+        return contextMap.get(new FlowRunIdentifier(runId)).getResult();
     }
 
     protected void setResult(String result) {
         String runId = MDC.get("runId");
-        contextMap.get(new TaskRunIdentifier(runId)).setResult(result);
+        contextMap.get(new FlowRunIdentifier(runId)).setResult(result);
     }
 
     protected void setProbeInterval(long interval, TimeUnit unit) {
         String runId = MDC.get("runId");
-        contextMap.get(new TaskRunIdentifier(runId)).setProbeInterval(interval);
-        contextMap.get(new TaskRunIdentifier(runId)).setProbeTimeUnit(unit);
+        contextMap.get(new FlowRunIdentifier(runId)).setProbeInterval(interval);
+        contextMap.get(new FlowRunIdentifier(runId)).setProbeTimeUnit(unit);
     }
 
     protected void setProbeTimeout(Duration timeout) {
         String runId = MDC.get("runId");
-        contextMap.get(new TaskRunIdentifier(runId)).setTimeout(timeout);
+        contextMap.get(new FlowRunIdentifier(runId)).setTimeout(timeout);
     }
 
-    public boolean canExecute(TaskRunIdentifier taskRunIdentifier) {
-        synchronized (taskRunIdentifier) {
-            TaskContext<D> context = getContext(taskRunIdentifier);
+    public boolean canExecute(FlowRunIdentifier flowRunIdentifier) {
+        synchronized (flowRunIdentifier) {
+            StepRunContext<D> context = getContext(flowRunIdentifier);
 
-            if (context.getStatus() != TaskStatus.NOT_STARTED) {
+            if (context.getStatus() != StepStatus.NOT_STARTED) {
                 return false;
             }
 
@@ -144,22 +144,22 @@ public abstract class Step<D> implements ConfigurationSettings {
                         field.setAccessible(true);
                         Step<?> value = (Step<?>) field.get(this);
                         if (operator == StepLogicOperator.AND) {
-                            if (value.getStatus(taskRunIdentifier) == TaskStatus.FAILED || value.getStatus(taskRunIdentifier) == TaskStatus.FAILED_TRANSITIVELY) {
+                            if (value.getStatus(flowRunIdentifier) == StepStatus.FAILED || value.getStatus(flowRunIdentifier) == StepStatus.FAILED_TRANSITIVELY) {
                                 allConditionsMet = false;
                             }
-                            if (value.getStatus(taskRunIdentifier) == TaskStatus.RUNNING || value.getStatus(taskRunIdentifier) == TaskStatus.READY ||
-                                    value.getStatus(taskRunIdentifier) == TaskStatus.NOT_STARTED ||
-                                    (value.getStatus(taskRunIdentifier) == TaskStatus.SUCCESS && StringUtils.isNotEmpty(field.getAnnotation(OnSuccess.class).value()) && !field.getAnnotation(OnSuccess.class).value().equals(value.getContext(taskRunIdentifier).getResult())) ||
-                                    (value.getStatus(taskRunIdentifier) == TaskStatus.FAILED && !field.getAnnotation(OnSuccess.class).value().equals(value.getContext(taskRunIdentifier).getResult()))) {
+                            if (value.getStatus(flowRunIdentifier) == StepStatus.RUNNING || value.getStatus(flowRunIdentifier) == StepStatus.READY ||
+                                    value.getStatus(flowRunIdentifier) == StepStatus.NOT_STARTED ||
+                                    (value.getStatus(flowRunIdentifier) == StepStatus.SUCCESS && StringUtils.isNotEmpty(field.getAnnotation(OnSuccess.class).value()) && !field.getAnnotation(OnSuccess.class).value().equals(value.getContext(flowRunIdentifier).getResult())) ||
+                                    (value.getStatus(flowRunIdentifier) == StepStatus.FAILED && !field.getAnnotation(OnSuccess.class).value().equals(value.getContext(flowRunIdentifier).getResult()))) {
                                 canProceed = false;
                             }
                         } else if (operator == StepLogicOperator.OR) {
-                            if (value.getStatus(taskRunIdentifier) == TaskStatus.SUCCESS && field.getAnnotation(OnSuccess.class).value().equals(value.getContext(taskRunIdentifier).getResult())) {
+                            if (value.getStatus(flowRunIdentifier) == StepStatus.SUCCESS && field.getAnnotation(OnSuccess.class).value().equals(value.getContext(flowRunIdentifier).getResult())) {
                                 allConditionsMet = true;
                                 canProceed = true;
                                 break;
                             }
-                            if (value.getStatus(taskRunIdentifier) == TaskStatus.FAILED || value.getStatus(taskRunIdentifier) == TaskStatus.FAILED_TRANSITIVELY) {
+                            if (value.getStatus(flowRunIdentifier) == StepStatus.FAILED || value.getStatus(flowRunIdentifier) == StepStatus.FAILED_TRANSITIVELY) {
                                 canProceed = true;
                             }
                         }
@@ -172,15 +172,15 @@ public abstract class Step<D> implements ConfigurationSettings {
                         field.setAccessible(true);
                         Step<?> value = (Step<?>) field.get(this);
                         if (operator == StepLogicOperator.AND) {
-                            if (value.getContext(taskRunIdentifier).getStatus() != TaskStatus.SUCCESS &&
-                                    value.getContext(taskRunIdentifier).getStatus() != TaskStatus.FAILED &&
-                                    value.getContext(taskRunIdentifier).getStatus() != TaskStatus.FAILED_TRANSITIVELY) {
+                            if (value.getContext(flowRunIdentifier).getStatus() != StepStatus.SUCCESS &&
+                                    value.getContext(flowRunIdentifier).getStatus() != StepStatus.FAILED &&
+                                    value.getContext(flowRunIdentifier).getStatus() != StepStatus.FAILED_TRANSITIVELY) {
                                 canProceed = false;
                             }
                         } else if (operator == StepLogicOperator.OR) {
-                            if (value.getContext(taskRunIdentifier).getStatus() == TaskStatus.SUCCESS ||
-                                    value.getContext(taskRunIdentifier).getStatus() == TaskStatus.FAILED ||
-                                    value.getContext(taskRunIdentifier).getStatus() == TaskStatus.FAILED_TRANSITIVELY) {
+                            if (value.getContext(flowRunIdentifier).getStatus() == StepStatus.SUCCESS ||
+                                    value.getContext(flowRunIdentifier).getStatus() == StepStatus.FAILED ||
+                                    value.getContext(flowRunIdentifier).getStatus() == StepStatus.FAILED_TRANSITIVELY) {
                                 canProceed = true;
                                 allConditionsMet = true;
                                 break;
@@ -194,16 +194,16 @@ public abstract class Step<D> implements ConfigurationSettings {
                     try {
                         field.setAccessible(true);
                         Step<?> value = (Step<?>) field.get(this);
-                        TaskStatus status = value.getContext(taskRunIdentifier).getStatus();
+                        StepStatus status = value.getContext(flowRunIdentifier).getStatus();
                         if (operator == StepLogicOperator.AND) {
-                            if (status != TaskStatus.FAILED && status != TaskStatus.FAILED_TRANSITIVELY) {
+                            if (status != StepStatus.FAILED && status != StepStatus.FAILED_TRANSITIVELY) {
                                 allConditionsMet = false;
                             }
-                            if (status == TaskStatus.RUNNING || status == TaskStatus.READY || status == TaskStatus.SUCCESS) {
+                            if (status == StepStatus.RUNNING || status == StepStatus.READY || status == StepStatus.SUCCESS) {
                                 canProceed = false;
                             }
                         } else if (operator == StepLogicOperator.OR) {
-                            if (status == TaskStatus.FAILED || status == TaskStatus.FAILED_TRANSITIVELY) {
+                            if (status == StepStatus.FAILED || status == StepStatus.FAILED_TRANSITIVELY) {
                                 canProceed = true;
                                 allConditionsMet = true;
                                 break;
@@ -217,10 +217,10 @@ public abstract class Step<D> implements ConfigurationSettings {
 
             if (allConditionsMet) {
                 if (canProceed) {
-                    context.setStatus(TaskStatus.READY);
+                    context.setStatus(StepStatus.READY);
                 }
             } else {
-                context.setStatus(TaskStatus.FAILED_TRANSITIVELY);
+                context.setStatus(StepStatus.FAILED_TRANSITIVELY);
                 return true;
             }
 
@@ -228,21 +228,21 @@ public abstract class Step<D> implements ConfigurationSettings {
         }
     }
 
-    public Set<TaskRunIdentifier> getIdentifiers() {
+    public Set<FlowRunIdentifier> getIdentifiers() {
         return contextMap.keySet();
     }
 
 
-    public long getProbeInterval(TaskRunIdentifier taskRunIdentifier) {
-        return getContext(taskRunIdentifier).getProbeInterval();
+    public long getProbeInterval(FlowRunIdentifier flowRunIdentifier) {
+        return getContext(flowRunIdentifier).getProbeInterval();
     }
 
-    public TimeUnit getProbeTimeUnit(TaskRunIdentifier taskRunIdentifier) {
-        return getContext(taskRunIdentifier).getProbeTimeUnit();
+    public TimeUnit getProbeTimeUnit(FlowRunIdentifier flowRunIdentifier) {
+        return getContext(flowRunIdentifier).getProbeTimeUnit();
     }
 
-    public Duration getProbeTimeout(TaskRunIdentifier taskRunIdentifier) {
-        return getContext(taskRunIdentifier).getTimeout();
+    public Duration getProbeTimeout(FlowRunIdentifier flowRunIdentifier) {
+        return getContext(flowRunIdentifier).getTimeout();
     }
 
 }

@@ -28,9 +28,9 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.data.provider.hierarchy.TreeDataProvider;
 import org.beanrunner.core.Step;
-import org.beanrunner.core.TaskManager;
-import org.beanrunner.core.TaskRunIdentifier;
-import org.beanrunner.core.TaskStatus;
+import org.beanrunner.core.StepManager;
+import org.beanrunner.core.FlowRunIdentifier;
+import org.beanrunner.core.StepStatus;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -42,15 +42,15 @@ public class TaskTreeView extends VerticalLayout {
     private final Grid<Step<?>> grid = new Grid<>((Class<Step<?>>)(Class<?>) Step.class, false);
     private TreeDataProvider<Step<?>> dataProvider;
 
-    private final TaskManager taskManager;
+    private final StepManager stepManager;
     private final Set<Step> addedTasks = new HashSet<>();
-    private TaskRunIdentifier identifier;
+    private FlowRunIdentifier identifier;
     private final MainView mainView;
 
     private Step<?> selectedRootTask;
 
-    public TaskTreeView(TaskManager taskManager, MainView mainView) {
-        this.taskManager = taskManager;
+    public TaskTreeView(StepManager stepManager, MainView mainView) {
+        this.stepManager = stepManager;
         this.mainView = mainView;
 
         setPadding(false);
@@ -100,23 +100,23 @@ public class TaskTreeView extends VerticalLayout {
             layout.setFlexGrow(1, filler);
 
             if (identifier != null) {
-                if (t.getStatus(identifier) == TaskStatus.RUNNING || t.getStatus(identifier) == TaskStatus.READY) {
+                if (t.getStatus(identifier) == StepStatus.RUNNING || t.getStatus(identifier) == StepStatus.READY) {
                     Loader icon = new Loader("loader-running");
                     layout.add(icon);
-                } else if (t.getStatus(identifier) == TaskStatus.PENDING_REWIND || t.getStatus(identifier) == TaskStatus.REWINDING) {
+                } else if (t.getStatus(identifier) == StepStatus.PENDING_REWIND || t.getStatus(identifier) == StepStatus.REWINDING) {
                     Loader icon = new Loader("loader-rewinding");
                     layout.add(icon);
-                } else if (t.getStatus(identifier) == TaskStatus.SUCCESS) {
+                } else if (t.getStatus(identifier) == StepStatus.SUCCESS) {
                     Icon icon = VaadinIcon.CHECK.create();
                     icon.setColor("green");
                     icon.setSize("20px");
                     layout.add(icon);
-                } else if (t.getStatus(identifier) == TaskStatus.FAILED) {
+                } else if (t.getStatus(identifier) == StepStatus.FAILED) {
                     Icon icon = VaadinIcon.CLOSE.create();
                     icon.setColor("red");
                     icon.setSize("20px");
                     layout.add(icon);
-                } else if (t.getStatus(identifier) == TaskStatus.FAILED_TRANSITIVELY) {
+                } else if (t.getStatus(identifier) == StepStatus.FAILED_TRANSITIVELY) {
                     Icon icon = VaadinIcon.CLOSE.create();
                     icon.setColor("#ffb8be");
                     icon.setSize("20px");
@@ -140,7 +140,7 @@ public class TaskTreeView extends VerticalLayout {
         return grid;
     }
 
-    public void refreshTask(Step<?> task, TaskRunIdentifier identifier) {
+    public void refreshTask(Step<?> task, FlowRunIdentifier identifier) {
         if (identifier.equals(this.identifier)) {
             grid.getDataProvider().refreshItem(task);
         }
@@ -150,7 +150,7 @@ public class TaskTreeView extends VerticalLayout {
         grid.setItems(List.of());
     }
 
-    public void setRootTask(Step<?> task, TaskRunIdentifier identifier) {
+    public void setRootTask(Step<?> task, FlowRunIdentifier identifier) {
         this.identifier = identifier;
         this.selectedRootTask = task;
         addedTasks.clear();
@@ -167,7 +167,7 @@ public class TaskTreeView extends VerticalLayout {
     private List<Step<?>> flattenTasks(Step<?> rootTask, List<Step<?>> tasks) {
         if (! tasks.contains(rootTask)) {
             tasks.add(rootTask);
-            List<Step<?>> dependentTasks = taskManager.getSubTasks(rootTask);
+            List<Step<?>> dependentTasks = stepManager.getChildSteps(rootTask);
             if (dependentTasks != null) {
                 dependentTasks.forEach(dt -> flattenTasks(dt, tasks));
             }

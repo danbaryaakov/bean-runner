@@ -92,7 +92,7 @@ import java.util.stream.Stream;
 
 @Route("")
 @JsModule("./js/copytoclipboard.js")
-public class MainView extends VerticalLayout implements TaskListener, HasDynamicTitle {
+public class MainView extends VerticalLayout implements StepListener, HasDynamicTitle {
 
     @Getter
     private final QualifierInspector qualifierInspector;
@@ -100,19 +100,19 @@ public class MainView extends VerticalLayout implements TaskListener, HasDynamic
     private final Grid<Step<?>> gridTasks = new Grid<>((Class<Step<?>>) (Class<?>) Step.class, false);
     private final VerticalLayout pnlContent = new VerticalLayout();
     private final String displayName;
-    private TaskRunIdentifier selectedIdentifier;
+    private FlowRunIdentifier selectedIdentifier;
     private DataProvider<Step<?>, ?> dataProvider;
     private Step<?> selectedStep;
 
     private List<Step<?>> tasks;
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     @Getter
-    private final TaskManager taskManager;
+    private final StepManager stepManager;
     @Getter
     private final PositionsService positionsService;
     private final TaskTreeView pnlTreeView;
 
-    private final Grid<TaskRunIdentifier> gridIdentifiers = new Grid<>(TaskRunIdentifier.class, false);
+    private final Grid<FlowRunIdentifier> gridIdentifiers = new Grid<>(FlowRunIdentifier.class, false);
 
     private final SplitLayout splitInner = new SplitLayout();
     private final SplitLayout splitRight = new SplitLayout();
@@ -124,8 +124,8 @@ public class MainView extends VerticalLayout implements TaskListener, HasDynamic
     @Getter
     private List<Step<?>> selectedFlowSteps;
 
-    private final List<TaskRunIdentifier> identifiers = new ArrayList<>();
-    private final ListDataProvider<TaskRunIdentifier> identifierDataProvider = DataProvider.ofCollection(identifiers);
+    private final List<FlowRunIdentifier> identifiers = new ArrayList<>();
+    private final ListDataProvider<FlowRunIdentifier> identifierDataProvider = DataProvider.ofCollection(identifiers);
     private final LogsView logsView;
     private final CustomSpringLogbackAppender appender;
     private final VerticalLayout pnlTaskDetails = new VerticalLayout();
@@ -213,7 +213,7 @@ public class MainView extends VerticalLayout implements TaskListener, HasDynamic
     record Positions(Map<String, Position> positions) {
     }
 
-    public MainView(@Autowired TaskManager taskManager,
+    public MainView(@Autowired StepManager stepManager,
                     @Autowired CustomSpringLogbackAppender appender,
                     @Autowired SettingsManager settingsManager,
                     @Autowired PositionsService positionsService,
@@ -221,12 +221,12 @@ public class MainView extends VerticalLayout implements TaskListener, HasDynamic
                     @Value("${bean-runner.display-name:BeanRunner}") String displayName,
                     @Value("${bean-runner.icon-path:images/bean-runner-logo.svg}") String iconPath) {
         this.qualifierInspector = qualifierInspector;
-        this.taskManager = taskManager;
+        this.stepManager = stepManager;
         this.settingsManager = settingsManager;
         this.pnlConfiguration = new ConfigurationView(settingsManager);
         this.positionsService = positionsService;
         this.appender = appender;
-        this.pnlTreeView = new TaskTreeView(taskManager, this);
+        this.pnlTreeView = new TaskTreeView(stepManager, this);
         this.diagramView = new DiagramView(this);
         this.displayName = displayName;
         this.logsView = new LogsView(this);
@@ -316,7 +316,7 @@ public class MainView extends VerticalLayout implements TaskListener, HasDynamic
             layout.add(spacer);
             layout.setFlexGrow(1, spacer);
 
-            for (TaskRunIdentifier identifier : t.getIdentifiers()) {
+            for (FlowRunIdentifier identifier : t.getIdentifiers()) {
                 if (identifier.isRunning()) {
                     Loader icon = new Loader("loader-running");
                     layout.add(icon);
@@ -326,13 +326,13 @@ public class MainView extends VerticalLayout implements TaskListener, HasDynamic
 
             if (t.getClass().isAnnotationPresent(StepSchedule.class)) {
                 ToggleButton btnCronEnabled = new ToggleButton("", VaadinIcon.CLOCK.create());
-                if (taskManager.isCronEnabled(t)) {
+                if (stepManager.isCronEnabled(t)) {
                     btnCronEnabled.setToggled(true);
                 } else {
                     btnCronEnabled.setToggled(false);
                 }
                 btnCronEnabled.addClickListener(e -> {
-                    taskManager.setCronEnabled(t, btnCronEnabled.isToggled());
+                    stepManager.setCronEnabled(t, btnCronEnabled.isToggled());
                 });
 
                 layout.add(btnCronEnabled);
@@ -349,8 +349,8 @@ public class MainView extends VerticalLayout implements TaskListener, HasDynamic
 
                 pnlTreeView.clear();
                 selectedFlow = e.getFirstSelectedItem().get();
-                selectedFlowSteps = taskManager.flattenTasks(selectedFlow);
-                taskManager.loadFlowIdentifiersFromStorageIfNecessary(selectedFlow);
+                selectedFlowSteps = stepManager.flattenSteps(selectedFlow);
+                stepManager.loadFlowIdentifiersFromStorageIfNecessary(selectedFlow);
 
                 identifiers.clear();
                 identifiers.addAll(e.getFirstSelectedItem().get().getIdentifiers());
@@ -452,7 +452,7 @@ public class MainView extends VerticalLayout implements TaskListener, HasDynamic
             layout.setAlignItems(Alignment.CENTER);
             layout.setFlexGrow(1, filler2);
 
-            TaskStatus status = null;
+            StepStatus status = null;
             if (i.isOverrideDisplayValues()) {
                 status = i.getFlowStatus();
             } else {
@@ -463,18 +463,18 @@ public class MainView extends VerticalLayout implements TaskListener, HasDynamic
                 Icon icon = VaadinIcon.CIRCLE.create();
                 icon.setColor("#99ff6e");
                 layout.add(icon);
-            } else if (status == TaskStatus.READY || status == TaskStatus.RUNNING) {
+            } else if (status == StepStatus.READY || status == StepStatus.RUNNING) {
                 Loader icon = new Loader("loader-running");
                 layout.add(icon);
-            } else if (status == TaskStatus.PENDING_REWIND || status == TaskStatus.REWINDING) {
+            } else if (status == StepStatus.PENDING_REWIND || status == StepStatus.REWINDING) {
                 Loader icon = new Loader("loader-rewinding");
                 layout.add(icon);
-            } else if (status == TaskStatus.SUCCESS) {
+            } else if (status == StepStatus.SUCCESS) {
                 Icon icon = VaadinIcon.CHECK.create();
                 icon.setColor("green");
                 icon.setSize("20px");
                 layout.add(icon);
-            } else if (status == TaskStatus.FAILED) {
+            } else if (status == StepStatus.FAILED) {
                 Icon icon = VaadinIcon.CLOSE.create();
                 icon.setColor("red");
                 icon.setSize("20px");
@@ -518,10 +518,10 @@ public class MainView extends VerticalLayout implements TaskListener, HasDynamic
         gridIdentifiers.addSelectionListener(e -> {
             if (e.getFirstSelectedItem().isPresent()) {
                 selectedIdentifier = e.getFirstSelectedItem().get();
-                taskManager.loadAndPropagateIdentifierIfNecessary(selectedFlow, selectedIdentifier);
+                stepManager.loadAndPropagateIdentifierIfNecessary(selectedFlow, selectedIdentifier);
                 identifierDataProvider.refreshAll();
                 if (selectedFlow != null) {
-                    TaskRunIdentifier identifier = e.getFirstSelectedItem().get();
+                    FlowRunIdentifier identifier = e.getFirstSelectedItem().get();
                     pnlTreeView.setRootTask(selectedFlow, identifier);
                     diagramView.setSelectedFlow(selectedFlow, identifier);
                 }
@@ -788,7 +788,7 @@ public class MainView extends VerticalLayout implements TaskListener, HasDynamic
 
         nd.addSelectNodeListener(ls -> {
             String nodeId = ls.getParams().getArray("nodes").getString(0);
-            for (Step<?> task : taskManager.getTasks()) {
+            for (Step<?> task : stepManager.getAllSteps()) {
                 if (task.getClass().getName().equals(nodeId)) {
                     pnlTreeView.setSelectedTask(task);
                     break;
@@ -841,12 +841,12 @@ public class MainView extends VerticalLayout implements TaskListener, HasDynamic
         txtFilterTasks.addValueChangeListener(e -> {
             if (e.getValue() != null && !e.getValue().isEmpty()) {
                 tasks.clear();
-                tasks.addAll(taskManager.getRootTasks().stream().filter(t -> t.getClass().getSimpleName().toLowerCase().contains(e.getValue().toLowerCase())).toList());
+                tasks.addAll(stepManager.getFirstSteps().stream().filter(t -> t.getClass().getSimpleName().toLowerCase().contains(e.getValue().toLowerCase())).toList());
                 dataProvider.refreshAll();
 
             } else {
                 tasks.clear();
-                tasks.addAll(taskManager.getRootTasks());
+                tasks.addAll(stepManager.getFirstSteps());
                 dataProvider.refreshAll();
             }
 
@@ -900,7 +900,7 @@ public class MainView extends VerticalLayout implements TaskListener, HasDynamic
         pnlConfiguration.setVisible(false);
         add(pnlConfiguration);
 
-        tasks = taskManager.getRootTasks();
+        tasks = stepManager.getFirstSteps();
 
         dataProvider = DataProvider.ofCollection(tasks);
         gridTasks.setDataProvider(dataProvider);
@@ -909,7 +909,7 @@ public class MainView extends VerticalLayout implements TaskListener, HasDynamic
 
     private void rewindAll() {
         Dialogs.confirm("Rewind", "Are you sure you want to rewind this flow?", "Yes", () -> {
-            taskManager.rewindAllRewindableSteps(selectedFlow, selectedIdentifier);
+            stepManager.rewindAllRewindableSteps(selectedFlow, selectedIdentifier);
             selectedIdentifier.setRewindArmed(false);
             selectedIdentifier.setOverrideDisplayValues(false);
             getUI().ifPresent(ui -> ui.access(() -> {
@@ -967,11 +967,11 @@ public class MainView extends VerticalLayout implements TaskListener, HasDynamic
 
         dialog.getFooter().add(new Button("Cancel", e2 -> dialog.close()));
         if (param.get() == null) {
-            taskManager.execute(t, null, false, "Manual", "images/source-manual.svg");
+            stepManager.executeFlow(t, null, false, "Manual", "images/source-manual.svg");
         } else {
             Button btnRun = new Button("Run", e2 -> {
                 dialog.close();
-                taskManager.execute(t, param.get(), false, "Manual", "images/source-manual.svg");
+                stepManager.executeFlow(t, param.get(), false, "Manual", "images/source-manual.svg");
             });
             btnRun.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
             btnRun.addClickShortcut(Key.ENTER);
@@ -981,7 +981,7 @@ public class MainView extends VerticalLayout implements TaskListener, HasDynamic
         }
     }
 
-    private List<TaskTagItem> getTagsFor(TaskRunIdentifier identifier) {
+    private List<TaskTagItem> getTagsFor(FlowRunIdentifier identifier) {
         if (selectedFlow == null || identifier == null) {
             return List.of();
         }
@@ -989,8 +989,8 @@ public class MainView extends VerticalLayout implements TaskListener, HasDynamic
             return identifier.getTags();
         }
         return selectedFlowSteps.stream().flatMap(task -> {
-            if (task.getStatus(identifier) != TaskStatus.NOT_STARTED
-                    && task.getStatus(identifier) != TaskStatus.FAILED_TRANSITIVELY) {
+            if (task.getStatus(identifier) != StepStatus.NOT_STARTED
+                    && task.getStatus(identifier) != StepStatus.FAILED_TRANSITIVELY) {
                 if (task.getClass().isAnnotationPresent(StepTag.class)) {
                     StepTag tag = task.getClass().getAnnotation(StepTag.class);
                     return Stream.of(new TaskTagItem(tag));
@@ -1000,18 +1000,18 @@ public class MainView extends VerticalLayout implements TaskListener, HasDynamic
         }).toList();
     }
 
-    private String colorForTask(Step<?> task, TaskRunIdentifier identifier) {
+    private String colorForTask(Step<?> task, FlowRunIdentifier identifier) {
         if (identifier == null) {
             return "white";
         }
-        TaskStatus status = task.getStatus(identifier);
-        if (status == TaskStatus.RUNNING) {
+        StepStatus status = task.getStatus(identifier);
+        if (status == StepStatus.RUNNING) {
             return "yellow";
-        } else if (status == TaskStatus.SUCCESS) {
+        } else if (status == StepStatus.SUCCESS) {
             return "lightgreen";
-        } else if (status == TaskStatus.FAILED) {
+        } else if (status == StepStatus.FAILED) {
             return "red";
-        } else if (status == TaskStatus.FAILED_TRANSITIVELY) {
+        } else if (status == StepStatus.FAILED_TRANSITIVELY) {
             return "#ffb8be";
         }
         return "white";
@@ -1045,26 +1045,26 @@ public class MainView extends VerticalLayout implements TaskListener, HasDynamic
         }
     }
 
-    private TaskStatus getFlowStatus(TaskRunIdentifier identifier) {
+    private StepStatus getFlowStatus(FlowRunIdentifier identifier) {
         if (selectedFlow == null || identifier == null) {
-            return TaskStatus.NOT_STARTED;
+            return StepStatus.NOT_STARTED;
         }
-        if (selectedFlowSteps.stream().anyMatch(t -> t.getStatus(identifier) == TaskStatus.RUNNING) ||
-                selectedFlowSteps.stream().anyMatch(t -> t.getStatus(identifier) == TaskStatus.READY)) {
-            return TaskStatus.RUNNING;
+        if (selectedFlowSteps.stream().anyMatch(t -> t.getStatus(identifier) == StepStatus.RUNNING) ||
+                selectedFlowSteps.stream().anyMatch(t -> t.getStatus(identifier) == StepStatus.READY)) {
+            return StepStatus.RUNNING;
         }
-        if (selectedFlowSteps.stream().anyMatch(t -> t.getStatus(identifier) == TaskStatus.PENDING_REWIND) ||
-                selectedFlowSteps.stream().anyMatch(t -> t.getStatus(identifier) == TaskStatus.REWINDING)) {
-            return TaskStatus.REWINDING;
+        if (selectedFlowSteps.stream().anyMatch(t -> t.getStatus(identifier) == StepStatus.PENDING_REWIND) ||
+                selectedFlowSteps.stream().anyMatch(t -> t.getStatus(identifier) == StepStatus.REWINDING)) {
+            return StepStatus.REWINDING;
         }
-        if (selectedFlowSteps.stream().anyMatch(t -> t.getStatus(identifier) == TaskStatus.FAILED)) {
-            return TaskStatus.FAILED;
+        if (selectedFlowSteps.stream().anyMatch(t -> t.getStatus(identifier) == StepStatus.FAILED)) {
+            return StepStatus.FAILED;
         }
-        if (selectedFlowSteps.stream().anyMatch(t -> t.getStatus(identifier) == TaskStatus.SUCCESS ||
-                t.getStatus(identifier) == TaskStatus.REWIND_SUCCESS || t.getStatus(identifier) == TaskStatus.REWIND_FAILED)) {
-            return TaskStatus.SUCCESS;
+        if (selectedFlowSteps.stream().anyMatch(t -> t.getStatus(identifier) == StepStatus.SUCCESS ||
+                t.getStatus(identifier) == StepStatus.REWIND_SUCCESS || t.getStatus(identifier) == StepStatus.REWIND_FAILED)) {
+            return StepStatus.SUCCESS;
         }
-        return TaskStatus.NOT_STARTED;
+        return StepStatus.NOT_STARTED;
 
     }
 
@@ -1190,23 +1190,23 @@ public class MainView extends VerticalLayout implements TaskListener, HasDynamic
     @Override
     public void onAttach(AttachEvent attachEvent) {
         super.onAttach(attachEvent);
-        taskManager.addListener(this);
+        stepManager.addListener(this);
         appender.addLogEventListener(logsView);
     }
 
     @Override
     public void onDetach(DetachEvent detachEvent) {
         super.onDetach(detachEvent);
-        taskManager.removeListener(this);
+        stepManager.removeListener(this);
         appender.removeLogEventListener(logsView);
         updateIRunIdentifierDebouncer.shutdown();
         updateTasksDebouncer.shutdown();
     }
 
     @Override
-    public void taskChanged(Step<?> task, TaskRunIdentifier identifier) {
+    public void stepChanged(Step<?> task, FlowRunIdentifier identifier) {
 
-        Step<?> rootTask = taskManager.getRootTask(task);
+        Step<?> rootTask = stepManager.getFirstStep(task);
 //            if (rootTask.getStatus(identifier) == TaskStatus.FAILED) {
 //                dataProvider.refreshItem(rootTask);
 //            }
@@ -1237,7 +1237,7 @@ public class MainView extends VerticalLayout implements TaskListener, HasDynamic
 
 
     @Override
-    public void runAdded(Step<?> rootTask, TaskRunIdentifier identifier, boolean userInitiated) {
+    public void runAdded(Step<?> rootTask, FlowRunIdentifier identifier, boolean userInitiated) {
         getUI().ifPresent(ui -> ui.access(() -> {
             if (selectedFlow == rootTask) {
                 identifiers.add(0, identifier);
@@ -1250,7 +1250,7 @@ public class MainView extends VerticalLayout implements TaskListener, HasDynamic
         }));
     }
 
-    public void taskTreeSelectionChanged(Step<?> task, TaskRunIdentifier identifier) {
+    public void taskTreeSelectionChanged(Step<?> task, FlowRunIdentifier identifier) {
 
     }
 

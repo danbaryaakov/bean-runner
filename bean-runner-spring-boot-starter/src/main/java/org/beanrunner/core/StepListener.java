@@ -18,24 +18,9 @@
  *
  */
 
-package org.beanrunner.core.views.components;
+package org.beanrunner.core;
 
-import org.beanrunner.core.FlowRunIdentifier;
-
-public class RunTagFilter implements Filter<FlowRunIdentifier> {
-
-    private final boolean showOnlyTaggedRuns;
-
-    public RunTagFilter(boolean showOnlyTaggedRuns) {
-        this.showOnlyTaggedRuns = showOnlyTaggedRuns;
-    }
-
-    @Override
-    public boolean filter(FlowRunIdentifier flowRunIdentifier) {
-        if (showOnlyTaggedRuns) {
-            return !flowRunIdentifier.getTags().isEmpty();
-        }
-        return true;
-    }
-
+public interface StepListener {
+    void stepChanged(Step<?> task, FlowRunIdentifier identifier);
+    void runAdded(Step<?> task, FlowRunIdentifier identifier, boolean userInitiated);
 }

@@ -31,7 +31,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.extern.slf4j.Slf4j;
 import org.beanrunner.core.QualifierInspector;
 import org.beanrunner.core.Step;
-import org.beanrunner.core.TaskRunIdentifier;
+import org.beanrunner.core.FlowRunIdentifier;
 import org.beanrunner.core.storage.StorageService;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.InitializingBean;
@@ -86,7 +86,7 @@ public class CustomSpringLogbackAppender extends AppenderBase<ILoggingEvent> imp
         }
     }
 
-    public void storeLogs(String flowId, Step<?> step, TaskRunIdentifier identifier) {
+    public void storeLogs(String flowId, Step<?> step, FlowRunIdentifier identifier) {
         String stepIdentifier = qualifierInspector.getQualifierForBean(step);
         List<LogEvent> logs = logEvents.get(stepIdentifier + "-" + identifier.getId());
         if (logs != null) {
@@ -99,7 +99,7 @@ public class CustomSpringLogbackAppender extends AppenderBase<ILoggingEvent> imp
         }
     }
 
-    public void loadLogs(String flowId, Step<?> step, TaskRunIdentifier identifier) {
+    public void loadLogs(String flowId, Step<?> step, FlowRunIdentifier identifier) {
         String stepIdentifier = qualifierInspector.getQualifierForBean(step);
         Optional<String> json = storageService.read("logs/" + flowId + "/" + identifier.getId() + "_" + identifier.getTimestamp() + "/" + stepIdentifier + "_log.json");
         if (json.isPresent()) {

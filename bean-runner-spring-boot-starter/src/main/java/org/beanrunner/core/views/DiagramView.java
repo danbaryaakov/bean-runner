@@ -55,10 +55,10 @@ public class DiagramView extends VerticalLayout {
     private final ListDataProvider<Edge> edgeDataProvider = new ListDataProvider<>(edges);
     private String selectedNodeId;
     private Step<?> selectedRootTask;
-    private TaskRunIdentifier selectedIdentifier;
+    private FlowRunIdentifier selectedIdentifier;
     @Getter
     private Step<?> selectedStep;
-    private Map<Integer, TaskStatus> clusters = new HashMap<>();
+    private Map<Integer, StepStatus> clusters = new HashMap<>();
 
     @Getter
     private boolean expandedState = true;
@@ -89,7 +89,7 @@ public class DiagramView extends VerticalLayout {
             String nodeId = ls.getParams().getArray("nodes").getString(0);
             selectedNodeId = nodeId;
             selectedStep = null;
-            for (Step<?> task : mainView.getTaskManager().getTasks()) {
+            for (Step<?> task : mainView.getStepManager().getAllSteps()) {
                 if (getTaskIdentifier(task).equals(nodeId)) {
                     selectedStep = task;
                     mainView.diagramTaskSelected(task);
@@ -104,7 +104,7 @@ public class DiagramView extends VerticalLayout {
         add(nd);
     }
 
-    public void setSelectedFlow(Step<?> task, TaskRunIdentifier identifier) {
+    public void setSelectedFlow(Step<?> task, FlowRunIdentifier identifier) {
         boolean taskChanged = selectedRootTask != task;
         selectedRootTask = task;
         selectedIdentifier = identifier;
@@ -150,55 +150,55 @@ public class DiagramView extends VerticalLayout {
         populateGraphDiagram(selectedRootTask, new HashSet<>());
     }
 
-    private String colorForTask(Step<?> task, TaskRunIdentifier identifier) {
+    private String colorForTask(Step<?> task, FlowRunIdentifier identifier) {
         if (identifier == null) {
             return "white";
         }
-        TaskStatus status = task.getStatus(identifier);
+        StepStatus status = task.getStatus(identifier);
         return colorForStatus(status);
     }
 
-    private String colorForStatus(TaskStatus status) {
-        if (status == TaskStatus.RUNNING) {
+    private String colorForStatus(StepStatus status) {
+        if (status == StepStatus.RUNNING) {
             return "yellow";
-        } else if (status == TaskStatus.SUCCESS) {
+        } else if (status == StepStatus.SUCCESS) {
             return "#99ff6e";
-        } else if (status == TaskStatus.FAILED) {
+        } else if (status == StepStatus.FAILED) {
             return "red";
-        } else if (status == TaskStatus.FAILED_TRANSITIVELY) {
+        } else if (status == StepStatus.FAILED_TRANSITIVELY) {
             return "lightgray";
-        } else if (status == TaskStatus.PENDING_REWIND || status == TaskStatus.REWINDING) {
+        } else if (status == StepStatus.PENDING_REWIND || status == StepStatus.REWINDING) {
             return "orange";
-        } else if (status == TaskStatus.REWIND_SUCCESS) {
+        } else if (status == StepStatus.REWIND_SUCCESS) {
             return "#26c776";
-        } else if (status == TaskStatus.REWIND_FAILED) {
+        } else if (status == StepStatus.REWIND_FAILED) {
             return "darkred";
         }
         return "white";
     }
 
-    private String borderForTask(Step<?> task, TaskRunIdentifier identifier) {
+    private String borderForTask(Step<?> task, FlowRunIdentifier identifier) {
         if (identifier == null) {
             return "darkgray";
         }
-        TaskStatus status = task.getStatus(identifier);
+        StepStatus status = task.getStatus(identifier);
         return borderForStatus(status);
     }
 
-    private static String borderForStatus(TaskStatus status) {
-        if (status == TaskStatus.RUNNING) {
+    private static String borderForStatus(StepStatus status) {
+        if (status == StepStatus.RUNNING) {
             return "#a69924";
-        } else if (status == TaskStatus.SUCCESS) {
+        } else if (status == StepStatus.SUCCESS) {
             return "#1d8236";
-        } else if (status == TaskStatus.FAILED) {
+        } else if (status == StepStatus.FAILED) {
             return "#8a1e2e";
-        } else if (status == TaskStatus.FAILED_TRANSITIVELY) {
+        } else if (status == StepStatus.FAILED_TRANSITIVELY) {
             return "#a3a3a3";
-        } else if (status == TaskStatus.PENDING_REWIND || status == TaskStatus.REWINDING) {
+        } else if (status == StepStatus.PENDING_REWIND || status == StepStatus.REWINDING) {
             return "#996100";
-        } else if (status == TaskStatus.REWIND_SUCCESS) {
+        } else if (status == StepStatus.REWIND_SUCCESS) {
             return "#1d751d";
-        } else if (status == TaskStatus.REWIND_FAILED) {
+        } else if (status == StepStatus.REWIND_FAILED) {
             return "#4d0218";
         }
         return "darkgray";
@@ -225,7 +225,7 @@ public class DiagramView extends VerticalLayout {
 
         }
 
-        List<Step<?>> dependentTasks = mainView.getTaskManager().getSubTasks(task);
+        List<Step<?>> dependentTasks = mainView.getStepManager().getChildSteps(task);
         for (Step<?> dependentTask : dependentTasks) {
             if (isHidden(dependentTask)) {
                 continue;
@@ -386,7 +386,7 @@ public class DiagramView extends VerticalLayout {
         Node node = nodes.stream().filter(n -> n.getId().equals(getTaskIdentifier(task))).findFirst().orElse(null);
         if (node != null) {
 //            if (task.getClusterId() == 0 || clusters.isEmpty()) {
-                applyNodeAttributes(task, node, mainView.getTaskManager().getRootTasks().stream().anyMatch(t -> t == task));
+                applyNodeAttributes(task, node, mainView.getStepManager().getFirstSteps().stream().anyMatch(t -> t == task));
                 nd.updateNode(node);
                 if (!clusters.isEmpty() && task.getClusterId() > 0) {
                     updateClusterColorFor(task);
@@ -399,29 +399,29 @@ public class DiagramView extends VerticalLayout {
     }
 
     private void updateClusterColorFor(Step<?> task) {
-        TaskStatus clusterStatus = clusters.get(task.getClusterId());
+        StepStatus clusterStatus = clusters.get(task.getClusterId());
         if (clusterStatus != null) {
-            TaskStatus clusterNewStatus = calcClusterStatus(task.getClusterId());
+            StepStatus clusterNewStatus = calcClusterStatus(task.getClusterId());
             clusters.put(task.getClusterId(), clusterNewStatus);
             nd.updateClusterColor(task.getClusterId(), colorForStatus(clusterNewStatus), borderForStatus(clusterNewStatus), colorForStatus(clusterNewStatus));
         } else {
-            TaskStatus taskStatus = selectedIdentifier == null ? TaskStatus.NOT_STARTED : task.getStatus(selectedIdentifier);
-            clusters.put(task.getClusterId(), taskStatus);
-            nd.updateClusterColor(task.getClusterId(), colorForStatus(taskStatus), borderForStatus(taskStatus), colorForStatus(taskStatus));
+            StepStatus stepStatus = selectedIdentifier == null ? StepStatus.NOT_STARTED : task.getStatus(selectedIdentifier);
+            clusters.put(task.getClusterId(), stepStatus);
+            nd.updateClusterColor(task.getClusterId(), colorForStatus(stepStatus), borderForStatus(stepStatus), colorForStatus(stepStatus));
         }
     }
 
-    private TaskStatus calcClusterStatus(int clusterId) {
+    private StepStatus calcClusterStatus(int clusterId) {
         if (selectedIdentifier == null) {
-            return TaskStatus.NOT_STARTED;
+            return StepStatus.NOT_STARTED;
         }
-        TaskStatus clusterStatus = TaskStatus.NOT_STARTED;
+        StepStatus clusterStatus = StepStatus.NOT_STARTED;
         if (mainView.getSelectedFlowSteps() == null) {
             return clusterStatus;
         }
         for (Step<?> step : mainView.getSelectedFlowSteps()) {
             if (step.getClusterId() == clusterId) {
-                TaskStatus status = selectedIdentifier != null ? step.getStatus(selectedIdentifier) : TaskStatus.NOT_STARTED;
+                StepStatus status = selectedIdentifier != null ? step.getStatus(selectedIdentifier) : StepStatus.NOT_STARTED;
                 clusterStatus = getWinningState(status, clusterStatus);
             }
         }
@@ -444,8 +444,8 @@ public class DiagramView extends VerticalLayout {
         if (selectedRootTask != null && mainView.getSelectedFlowSteps() != null) {
             clusters.clear();
             for (Step<?> step : mainView.getSelectedFlowSteps()) {
-                TaskStatus status = selectedIdentifier != null ? step.getStatus(selectedIdentifier) : TaskStatus.NOT_STARTED;
-                TaskStatus clusterStatus = clusters.get(step.getClusterId());
+                StepStatus status = selectedIdentifier != null ? step.getStatus(selectedIdentifier) : StepStatus.NOT_STARTED;
+                StepStatus clusterStatus = clusters.get(step.getClusterId());
                 if (step.getClusterId() > 0) {
                     if (clusterStatus == null) {
                         clusters.put(step.getClusterId(), status);
@@ -466,21 +466,21 @@ public class DiagramView extends VerticalLayout {
 
     }
 
-    private TaskStatus getWinningState(TaskStatus status, TaskStatus clusterStatus) {
-        if (clusterStatus == TaskStatus.NOT_STARTED) {
+    private StepStatus getWinningState(StepStatus status, StepStatus clusterStatus) {
+        if (clusterStatus == StepStatus.NOT_STARTED) {
             return status;
         }
-        if (status == TaskStatus.RUNNING) {
-            return TaskStatus.RUNNING;
+        if (status == StepStatus.RUNNING) {
+            return StepStatus.RUNNING;
         }
-        if (status == TaskStatus.REWINDING) {
-            return TaskStatus.REWINDING;
+        if (status == StepStatus.REWINDING) {
+            return StepStatus.REWINDING;
         }
-        if (status == TaskStatus.FAILED && clusterStatus != TaskStatus.RUNNING) {
-            return TaskStatus.FAILED;
+        if (status == StepStatus.FAILED && clusterStatus != StepStatus.RUNNING) {
+            return StepStatus.FAILED;
         }
-        if (status == TaskStatus.SUCCESS && clusterStatus != TaskStatus.RUNNING) {
-            return TaskStatus.SUCCESS;
+        if (status == StepStatus.SUCCESS && clusterStatus != StepStatus.RUNNING) {
+            return StepStatus.SUCCESS;
         }
 
         return clusterStatus;

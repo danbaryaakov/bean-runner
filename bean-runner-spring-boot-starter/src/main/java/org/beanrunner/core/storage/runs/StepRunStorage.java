@@ -27,8 +27,8 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.extern.slf4j.Slf4j;
 import org.beanrunner.core.QualifierInspector;
 import org.beanrunner.core.Step;
-import org.beanrunner.core.TaskContext;
-import org.beanrunner.core.TaskRunIdentifier;
+import org.beanrunner.core.StepRunContext;
+import org.beanrunner.core.FlowRunIdentifier;
 import org.beanrunner.core.storage.StorageService;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,7 +51,7 @@ public class StepRunStorage implements InitializingBean {
 
     private ObjectMapper objectMapper = new ObjectMapper();
 
-    public List<TaskRunIdentifier> getIdentifiersForFlow(String flowId) {
+    public List<FlowRunIdentifier> getIdentifiersForFlow(String flowId) {
         List<String> folders = storageService.list("runs/" + flowId + "/");
         return folders.stream().flatMap(folder -> {
             String[] parts = folder.split("_");
@@ -59,7 +59,7 @@ public class StepRunStorage implements InitializingBean {
                 String id = parts[0];
                 String timestamp = parts[1];
                 try {
-                    return Stream.of(new TaskRunIdentifier(id, Long.parseLong(timestamp)));
+                    return Stream.of(new FlowRunIdentifier(id, Long.parseLong(timestamp)));
                 } catch (Throwable t) {
                     // ignore
                 }
@@ -69,12 +69,12 @@ public class StepRunStorage implements InitializingBean {
         }).collect(Collectors.toList());
     }
 
-    public <D> void loadStepContext(String flowId, Step<D> step, TaskRunIdentifier id) {
+    public <D> void loadStepContext(String flowId, Step<D> step, FlowRunIdentifier id) {
         String stepIdentifier = qualifierInspector.getQualifierForBean(step);
         Optional<String> json = storageService.read("runs/" + flowId + "/" + id.getId() + "_" + id.getTimestamp() + "/" + stepIdentifier + ".json");
         if (json.isPresent()) {
             try {
-                TaskContext<?> context = step.getContext(id);
+                StepRunContext<?> context = step.getContext(id);
                 objectMapper.readerForUpdating(context).readValue(json.get());
             } catch (Exception e) {
                 log.error("Failed to load step context", e);
@@ -82,7 +82,7 @@ public class StepRunStorage implements InitializingBean {
         }
     }
 
-    public void storeIdentifier(String flowId, Step<?> step, TaskRunIdentifier identifier) {
+    public void storeIdentifier(String flowId, Step<?> step, FlowRunIdentifier identifier) {
         try {
             String content = objectMapper.writeValueAsString(identifier);
             storageService.store("runs/" + flowId + "/" + identifier.getId() + "_" + identifier.getTimestamp() + "/" + identifier.getId() + ".json", content);
@@ -91,7 +91,7 @@ public class StepRunStorage implements InitializingBean {
         }
     }
 
-    public void loadIdentifier(String flowId, Step<?> step, TaskRunIdentifier identifier) {
+    public void loadIdentifier(String flowId, Step<?> step, FlowRunIdentifier identifier) {
         Optional<String> json = storageService.read("runs/" + flowId + "/" + identifier.getId() + "_" + identifier.getTimestamp() + "/" + identifier.getId() + ".json");
         if (json.isPresent()) {
             try {
@@ -102,10 +102,10 @@ public class StepRunStorage implements InitializingBean {
         }
     }
 
-    public void saveStepContext(String flowId, Step<?> step, TaskRunIdentifier id) {
+    public void saveStepContext(String flowId, Step<?> step, FlowRunIdentifier id) {
         String stepIdentifier = qualifierInspector.getQualifierForBean(step);
         try {
-            TaskContext<?> context = step.getContext(id);
+            StepRunContext<?> context = step.getContext(id);
             String json = objectMapper.writeValueAsString(context);
             storageService.store("runs/" + flowId + "/" + id.getId() + "_" + id.getTimestamp() + "/" + stepIdentifier + ".json", json);
         } catch (Exception e) {

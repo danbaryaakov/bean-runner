@@ -22,7 +22,7 @@ package org.beanrunner.core.views;
 
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import org.beanrunner.core.Step;
-import org.beanrunner.core.TaskRunIdentifier;
+import org.beanrunner.core.FlowRunIdentifier;
 import org.beanrunner.core.logging.LogEvent;
 import org.beanrunner.core.logging.LogEventAddedEvent;
 import org.beanrunner.core.logging.LogListener;
@@ -40,7 +40,7 @@ public class LogsView extends VerticalLayout implements LogListener {
     private final MainView mainView;
 
     private Step<?> selectedStep;
-    private TaskRunIdentifier selectedIdentifier;
+    private FlowRunIdentifier selectedIdentifier;
 
     public LogsView(MainView mainView) {
         this.mainView = mainView;
@@ -71,7 +71,7 @@ public class LogsView extends VerticalLayout implements LogListener {
         add(grid);
     }
 
-    public synchronized void setLogEvents(Step<?> step, TaskRunIdentifier identifier, List<LogEvent> logEvents) {
+    public synchronized void setLogEvents(Step<?> step, FlowRunIdentifier identifier, List<LogEvent> logEvents) {
         this.selectedStep = step;
         this.selectedIdentifier = identifier;
         if (logEvents == null) {
