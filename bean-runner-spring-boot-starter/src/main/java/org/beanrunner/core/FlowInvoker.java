@@ -20,6 +20,7 @@
 
 package org.beanrunner.core;
 
+import lombok.Getter;
 import org.beanrunner.core.annotations.OnComplete;
 import org.beanrunner.core.annotations.StepHidden;
 import org.slf4j.MDC;
@@ -27,15 +28,18 @@ import org.slf4j.MDC;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 @StepHidden
 public class FlowInvoker<P, R> extends Step<R> {
 
-    private final Map<String, Consumer<R>> asyncCallables = new ConcurrentHashMap<>();
+    private final Map<String, BiConsumer<String, R>> asyncCallables = new ConcurrentHashMap<>();
+    private final Map<String, BiConsumer<String, List<Throwable>>> errorConsumers = new ConcurrentHashMap<>();
 
     private final  Map<String, FlowRunIdentifier> taskRunIdentifiers = new ConcurrentHashMap<>();
 
+    @Getter
     private final Step<P> firstStep;
 
     @OnComplete
@@ -46,16 +50,25 @@ public class FlowInvoker<P, R> extends Step<R> {
         this.lastStep = lastStep;
     }
 
-    public final synchronized void runAsync(P parameter) {
-        runAsync(parameter, null);
+    public final synchronized String runAsync(P parameter) {
+        return runAsync(parameter, null, null);
     }
 
-    public final synchronized void runAsync(P parameter, Consumer<R> consumer) {
+    public final synchronized String runAsync(P parameter, BiConsumer<String, R> consumer) {
+        return runAsync(parameter, consumer, null);
+    }
+
+
+    public final synchronized String runAsync(P parameter, BiConsumer<String, R> consumer, BiConsumer<String, List<Throwable>> errorConsumer) {
         FlowRunIdentifier identifier = StaticTransactionManagerHolder.getBean(StepManager.class).executeFlow(firstStep, parameter, true, getSourceName(), getSourceIconPath());
         if (consumer != null) {
             asyncCallables.put(identifier.getId(), consumer);
         }
+        if (errorConsumer != null) {
+            errorConsumers.put(identifier.getId(), errorConsumer);
+        }
         taskRunIdentifiers.put(identifier.getId(), identifier);
+        return identifier.getId();
     }
 
     public final R runSync(P parameter) {
@@ -94,12 +107,21 @@ public class FlowInvoker<P, R> extends Step<R> {
             setData(result);
             // handle async invocation
             String identifier = MDC.get("runId");
-            Consumer<R> consumer = asyncCallables.remove(identifier);
-            if (consumer != null) {
-                consumer.accept(result);
+            BiConsumer<String, R> consumer = asyncCallables.remove(identifier);
+            BiConsumer<String, List<Throwable>> errorConsumer = errorConsumers.remove(identifier);
+            StepStatus flowStatus = getFlowStatus();
+            if (flowStatus == StepStatus.FAILED) {
+                List<Throwable> exceptions = getExceptions();
+                if (errorConsumer != null) {
+                    errorConsumer.accept(identifier, exceptions);
+                }
+            } else {
+                if (consumer != null) {
+                    consumer.accept(identifier, result);
+                }
             }
 
-            // wake up async invocations
+            // wake up sync invocations
             FlowRunIdentifier flowRunIdentifier = taskRunIdentifiers.remove(identifier);
             if (flowRunIdentifier != null) {
                 synchronized (flowRunIdentifier) {

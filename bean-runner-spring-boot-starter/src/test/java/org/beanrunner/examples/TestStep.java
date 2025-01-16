@@ -30,7 +30,7 @@ public class TestStep<D> extends Step<D> {
 
     @Override
     public void rewind() {
-        log.info("Rewinding {}", getClass().getSimpleName());
+        log.info("Rewd .inding {}", getClass().getSimpleName());
         sleep(600);
         if (isRewindFail) {
             throw new RuntimeException("Simulating rewind failure");

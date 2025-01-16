@@ -1,5 +1,6 @@
 package org.beanrunner.examples.result;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
 @Getter
@@ -8,5 +9,6 @@ import lombok.*;
 @NoArgsConstructor
 @ToString
 public class TestParameter {
+    @JsonProperty
     private String name;
 }
