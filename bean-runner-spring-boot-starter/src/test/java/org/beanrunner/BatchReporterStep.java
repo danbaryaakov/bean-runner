@@ -22,6 +22,8 @@ package org.beanrunner;
 
 import org.beanrunner.core.Step;
 import org.beanrunner.core.annotations.OnSuccess;
+import org.beanrunner.core.annotations.StepIcon;
+import org.beanrunner.core.annotations.StepSize;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,6 +33,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+@StepSize(25)
+@StepIcon("images/step-batch.svg")
 public abstract class BatchReporterStep<D> extends Step<D> {
 
     private long lastExecutionTime;

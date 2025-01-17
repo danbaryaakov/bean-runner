@@ -20,25 +20,18 @@
 
 package org.beanrunner.examples.result;
 
-import org.beanrunner.BatchReporterStep;
-import org.beanrunner.examples.rewind.Person;
+import org.beanrunner.ConcurrentRunsLimiter;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
-import java.util.List;
-import java.util.concurrent.TimeUnit;
+@Configuration
+public class HttpExampleConfig {
+    public static final String LIMITER_QUALIFIER = "concurrentRunsLimiter_httpExample";
 
-@Component
-public class BatchReportExample extends BatchReporterStep<Person> {
-
-    public BatchReportExample(@Autowired GeneratePerson inputStep) {
-        super(inputStep, 10, 30, TimeUnit.SECONDS);
+    @Bean(LIMITER_QUALIFIER)
+    public ConcurrentRunsLimiter concurrentRunsLimiter(@Autowired HttpFlowExample start) {
+        return new ConcurrentRunsLimiter(start, 10L);
     }
 
-    @Override
-    protected void handleBatch(List<Person> data) {
-        System.out.println("Reporting batch of " + data.size() + " persons: ");
-        data.forEach(System.out::println);
-        System.out.println("-----------------------------------------------------");
-    }
 }

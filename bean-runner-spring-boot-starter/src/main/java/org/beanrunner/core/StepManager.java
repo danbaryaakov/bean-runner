@@ -673,7 +673,7 @@ public class StepManager {
                 } else {
                     scheduledExecutorService.schedule(() -> {
                         deleteRun(firstStep, identifier);
-                    }, retentionConfig.successfulTTLMillis(), TimeUnit.MILLISECONDS);
+                    }, rootStatus == StepStatus.FAILED ? retentionConfig.failureTTLMillis() : retentionConfig.successfulTTLMillis(), TimeUnit.MILLISECONDS);
                 }
             }
             if (rootStatus != StepStatus.RUNNING && rootStatus != StepStatus.READY && rootStatus != StepStatus.REWINDING && rootStatus != StepStatus.PENDING_REWIND) {

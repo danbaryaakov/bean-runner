@@ -1125,7 +1125,7 @@ public class MainView extends VerticalLayout implements StepListener, HasDynamic
                 });
                 textField.setWidthFull();
                 panel.add(textField);
-            } else if (field.getType().equals(int.class)) {
+            } else if (field.getType().equals(int.class) || field.getType().equals(Integer.class)) {
                 TextField textField = new TextField(uiConfigurable.value());
                 try {
                     field.setAccessible(true);
@@ -1144,7 +1144,7 @@ public class MainView extends VerticalLayout implements StepListener, HasDynamic
                 });
                 textField.setWidthFull();
                 panel.add(textField);
-            } else if (field.getType().equals(long.class)) {
+            } else if (field.getType().equals(long.class) || field.getType().equals(Long.class)) {
                 TextField textField = new TextField(uiConfigurable.value());
                 try {
                     field.setAccessible(true);

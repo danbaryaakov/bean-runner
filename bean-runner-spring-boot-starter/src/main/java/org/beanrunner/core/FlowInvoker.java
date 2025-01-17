@@ -78,7 +78,7 @@ public class FlowInvoker<P, R> extends Step<R> {
 
         synchronized (identifier) {
 
-            StaticTransactionManagerHolder.getBean(StepManager.class).executeFlow(firstStep, parameter, identifier, false, getSourceName(), getSourceIconPath());
+            StaticTransactionManagerHolder.getBean(StepManager.class).executeFlow(firstStep, parameter, identifier, true, getSourceName(), getSourceIconPath());
 
             try {
                 identifier.wait();
@@ -111,12 +111,16 @@ public class FlowInvoker<P, R> extends Step<R> {
     public final void run() {
         if (lastStep != null) {
 
+            String identifier = MDC.get("runId");
+            FlowRunIdentifier flowRunIdentifier = taskRunIdentifiers.remove(identifier);
+
+            if (flowRunIdentifier == null) {
+                return;
+            }
+
             R result = lastStep.getData();
             setData(result);
             // handle async invocation
-            String identifier = MDC.get("runId");
-
-            FlowRunIdentifier flowRunIdentifier = taskRunIdentifiers.remove(identifier);
 
             BiConsumer<String, R> consumer = asyncCallables.remove(identifier);
             BiConsumer<String, List<Throwable>> errorConsumer = errorConsumers.remove(identifier);

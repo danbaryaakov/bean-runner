@@ -300,10 +300,10 @@ public class DiagramView extends VerticalLayout {
         } else {
             label = ViewUtils.splitCamelCase(task.getClass().getSimpleName());
         }
-        String qualifier = mainView.getQualifierInspector().getQualifierForBean(task);
-        if (qualifier.contains("_")) {
-            label += " (" + qualifier.substring(qualifier.indexOf("_") + 1) + ")";
-        }
+//        String qualifier = mainView.getQualifierInspector().getQualifierForBean(task);
+//        if (qualifier.contains("_")) {
+//            label += " (" + qualifier.substring(qualifier.indexOf("_") + 1) + ")";
+//        }
         node.setLabel(label);
         if (isRoot) {
             node.setShape(Shape.star);
