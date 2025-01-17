@@ -5,6 +5,7 @@ import org.beanrunner.ConcurrentRunsLimiter;
 import org.beanrunner.core.Step;
 import org.beanrunner.core.annotations.OnSuccess;
 import org.beanrunner.core.annotations.StepIcon;
+import org.beanrunner.core.annotations.StepSize;
 import org.beanrunner.core.annotations.UIConfigurable;
 import org.beanrunner.examples.rewind.Person;
 import org.beanrunner.examples.rewind.RandomPersonGenerator;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @StepIcon("images/step-cog.svg")
+@StepSize(30)
 public class GeneratePerson extends Step<Person> {
 
     @Autowired

@@ -36,8 +36,8 @@ import java.util.function.Consumer;
 @StepHidden
 public class FlowInvoker<P, R> extends Step<R> {
 
-    private final Map<String, BiConsumer<String, R>> asyncCallables = new ConcurrentHashMap<>();
-    private final Map<String, BiConsumer<String, List<Throwable>>> errorConsumers = new ConcurrentHashMap<>();
+    private final Map<FlowRunIdentifier, BiConsumer<FlowRunIdentifier, R>> asyncCallables = new ConcurrentHashMap<>();
+    private final Map<FlowRunIdentifier, BiConsumer<FlowRunIdentifier, List<Throwable>>> errorConsumers = new ConcurrentHashMap<>();
 
     private final  Map<String, FlowRunIdentifier> taskRunIdentifiers = new ConcurrentHashMap<>();
 
@@ -56,18 +56,17 @@ public class FlowInvoker<P, R> extends Step<R> {
         return runAsync(parameter, null, null);
     }
 
-    public final String runAsync(P parameter, BiConsumer<String, R> consumer) {
+    public final String runAsync(P parameter, BiConsumer<FlowRunIdentifier, R> consumer) {
         return runAsync(parameter, consumer, null);
     }
 
-
-    public final String runAsync(P parameter, BiConsumer<String, R> consumer, BiConsumer<String, List<Throwable>> errorConsumer) {
+    public final String runAsync(P parameter, BiConsumer<FlowRunIdentifier, R> consumer, BiConsumer<FlowRunIdentifier, List<Throwable>> errorConsumer) {
         FlowRunIdentifier identifier = StaticTransactionManagerHolder.getBean(StepManager.class).executeFlow(firstStep, parameter, true, getSourceName(), getSourceIconPath());
         if (consumer != null) {
-            asyncCallables.put(identifier.getId(), consumer);
+            asyncCallables.put(identifier, consumer);
         }
         if (errorConsumer != null) {
-            errorConsumers.put(identifier.getId(), errorConsumer);
+            errorConsumers.put(identifier, errorConsumer);
         }
         taskRunIdentifiers.put(identifier.getId(), identifier);
         return identifier.getId();
@@ -117,7 +116,6 @@ public class FlowInvoker<P, R> extends Step<R> {
             FlowRunIdentifier flowRunIdentifier = taskRunIdentifiers.remove(identifier);
 
             if (flowRunIdentifier == null) {
-                log.error("No run identifier found for {}", identifier);
                 return;
             }
 
@@ -125,17 +123,17 @@ public class FlowInvoker<P, R> extends Step<R> {
             setData(result);
             // handle async invocation
 
-            BiConsumer<String, R> consumer = asyncCallables.remove(identifier);
-            BiConsumer<String, List<Throwable>> errorConsumer = errorConsumers.remove(identifier);
+            BiConsumer<FlowRunIdentifier, R> consumer = asyncCallables.remove(identifier);
+            BiConsumer<FlowRunIdentifier, List<Throwable>> errorConsumer = errorConsumers.remove(identifier);
             StepStatus flowStatus = getFlowStatus(flowRunIdentifier);
             if (flowStatus == StepStatus.FAILED) {
                 List<Throwable> exceptions = getExceptions(flowRunIdentifier);
                 if (errorConsumer != null) {
-                    errorConsumer.accept(identifier, exceptions);
+                    errorConsumer.accept(flowRunIdentifier, exceptions);
                 }
             } else {
                 if (consumer != null) {
-                    consumer.accept(identifier, result);
+                    consumer.accept(flowRunIdentifier, result);
                 }
             }
 

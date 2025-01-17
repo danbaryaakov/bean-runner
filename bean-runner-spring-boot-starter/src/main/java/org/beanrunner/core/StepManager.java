@@ -68,6 +68,8 @@ public class StepManager {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    private final Map<Step<?>, RateCounter> rateCounters = new ConcurrentHashMap<>();
+
     public StepManager(@Autowired Optional<TaskScheduler> scheduler,
                        @Autowired DynamicBeanRegistrar dynamicBeanRegistrar,
                        @Autowired List<Step<?>> steps,
@@ -99,7 +101,7 @@ public class StepManager {
                 StepSchedule runAt = firstStep.getClass().getAnnotation(StepSchedule.class);
                 taskScheduler.schedule(() -> {
                     if (! disabledCronSteps.contains(qualifierInspector.getQualifierForBean(firstStep))) {
-                        executeFlow(firstStep, null, true, "Cron", "images/source-cron.svg");
+                        executeFlow(firstStep, null, false, "Cron", "images/source-cron.svg");
                     }
                 }, new CronTrigger(runAt.value()));
             }
@@ -245,16 +247,19 @@ public class StepManager {
         firstStep.getContext(identifier).setData(parameter);
         identifier.setInvocationType(InvocationType.MANUAL);
         executorService.submit(() -> executeStep(firstStep, identifier, 1));
-        boolean showInUI = true;
-        if (firstStep.getClass().isAnnotationPresent(RunRetentionConfig.class)) {
-            RunRetentionConfig config = firstStep.getClass().getAnnotation(RunRetentionConfig.class);
-            showInUI = config.showInUI();
-        }
-        if (showInUI) {
-            notifyRunAdded(firstStep, identifier, !isBackground);
+        identifier.setBackground(isBackground);
+
+        if (! identifier.isBackground()) {
+            notifyRunAdded(firstStep, identifier, true);
+        } else {
+            rateCounters.computeIfAbsent(firstStep, k -> new RateCounter(5000)).recordInvocation();
         }
 
         return identifier;
+    }
+
+    public double getRate(Step<?> firstStep) {
+        return rateCounters.computeIfAbsent(firstStep, k -> new RateCounter(5000)).getInvocationsPerSecond();
     }
 
     public StepStatus getFlowStatus(Step<?> step, FlowRunIdentifier identifier, Step<?> excludeStep) {
@@ -672,7 +677,7 @@ public class StepManager {
                         shouldSave = false;
                     }
                 }
-                if (shouldSave) {
+                if (!identifier.isBackground() || shouldSave) {
                     stepRunStorage.storeIdentifier(flowId, firstStep, identifier);
                     flattenSteps(firstStep).forEach(t -> {
                         stepRunStorage.saveStepContext(flowId, t, identifier);
@@ -686,7 +691,9 @@ public class StepManager {
             }
             if (rootStatus != StepStatus.RUNNING && rootStatus != StepStatus.READY && rootStatus != StepStatus.REWINDING && rootStatus != StepStatus.PENDING_REWIND) {
                 identifier.setRunning(false);
-                listeners.forEach(listener -> listener.stepChanged(step, identifier));
+                if (! identifier.isBackground()) {
+                    listeners.forEach(listener -> listener.stepChanged(step, identifier));
+                }
             }
         }
     }
@@ -696,7 +703,9 @@ public class StepManager {
         flattened.forEach(s -> {
             s.contextMap.remove(identifier);
         });
-        listeners.forEach(listener -> listener.runRemoved(firstStep, identifier));
+        if (!identifier.isBackground()) {
+            listeners.forEach(listener -> listener.runRemoved(firstStep, identifier));
+        }
     }
 
     public List<Step<?>> flattenSteps(Step<?> firstStep) {

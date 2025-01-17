@@ -75,9 +75,9 @@ public class HttpController {
             AtomicReference<Object> state = new AtomicReference<>();
 
             String identifier = invoker.runAsync(parameter, (i, result) -> {
-                stateMap.put(i, StepStatus.SUCCESS);
+                stateMap.put(i.getId(), StepStatus.SUCCESS);
             }, (i, errors) -> {
-                stateMap.put(i, StepStatus.FAILED);
+                stateMap.put(i.getId(), StepStatus.FAILED);
             });
             stateMap.putIfAbsent(identifier, StepStatus.RUNNING);
             return identifier;

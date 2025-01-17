@@ -316,14 +316,23 @@ public class MainView extends VerticalLayout implements StepListener, HasDynamic
             layout.add(spacer);
             layout.setFlexGrow(1, spacer);
 
+            boolean isRunning = false;
             for (FlowRunIdentifier identifier : t.getIdentifiers()) {
-                if (identifier.isRunning()) {
+                if (!identifier.isBackground() && identifier.isRunning()) {
                     Loader icon = new Loader("loader-running");
                     layout.add(icon);
+                    isRunning = true;
                     break;
                 }
             }
-
+            if (!isRunning) {
+                double rate = stepManager.getRate(t);
+                if (rate > 0.1) {
+                    Span spanRate = new Span( String.format("%.1f", rate) + "/s");
+                    spanRate.getStyle().setColor("darkgray");
+                    layout.add(spanRate);
+                }
+            }
             if (t.getClass().isAnnotationPresent(StepSchedule.class)) {
                 ToggleButton btnCronEnabled = new ToggleButton("", VaadinIcon.CLOCK.create());
                 if (stepManager.isCronEnabled(t)) {
@@ -353,7 +362,7 @@ public class MainView extends VerticalLayout implements StepListener, HasDynamic
                 stepManager.loadFlowIdentifiersFromStorageIfNecessary(selectedFlow);
 
                 identifiers.clear();
-                identifiers.addAll(e.getFirstSelectedItem().get().getIdentifiers());
+                identifiers.addAll(e.getFirstSelectedItem().get().getIdentifiers().stream().filter(i -> !i.isBackground()).toList());
                 identifiers.sort((o1, o2) -> Long.compare(o2.getTimestamp(), o1.getTimestamp()));
 
                 identifierDataProvider.refreshAll();
@@ -1223,7 +1232,7 @@ public class MainView extends VerticalLayout implements StepListener, HasDynamic
                 }));
             });
         }
-        if (identifier == selectedIdentifier && identifier != null) {
+        if (identifier != null && !identifier.isBackground() && identifier == selectedIdentifier ) {
             getUI().ifPresent(ui -> ui.access(() -> {
                 diagramView.updateTask(task);
                 btnRewind.setVisible(identifier.isRewindArmed());

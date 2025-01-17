@@ -59,6 +59,8 @@ public class FlowRunIdentifier {
 
     private boolean rewindArmed;
 
+    private boolean background;
+
     public FlowRunIdentifier() {
         id = UUID.randomUUID().toString();
         this.timestamp = System.currentTimeMillis();

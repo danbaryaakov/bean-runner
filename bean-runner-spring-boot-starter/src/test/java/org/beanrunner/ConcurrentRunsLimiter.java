@@ -27,15 +27,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.beanrunner.core.FlowRunIdentifier;
 import org.beanrunner.core.Step;
 import org.beanrunner.core.StepStatus;
-import org.beanrunner.core.annotations.OnSuccess;
-import org.beanrunner.core.annotations.StepIcon;
-import org.beanrunner.core.annotations.StepName;
-import org.beanrunner.core.annotations.UIConfigurable;
+import org.beanrunner.core.annotations.*;
 
 @Slf4j
 @StepIcon("images/step-bucket.svg")
-@StepName("Concurrent Runs Limiter")
+@StepName("Rate Limiter")
+@StepSize(25)
 @RequiredArgsConstructor
+@StepDescription("""
+        Demonstrates how to limit the number of concurrent runs of a flow.
+        Throws a 429 error if the limit is exceeded.
+        """)
 public class ConcurrentRunsLimiter extends Step<Void> {
 
     @NonNull
@@ -44,7 +46,7 @@ public class ConcurrentRunsLimiter extends Step<Void> {
 
     @NonNull
     @JsonProperty
-    @UIConfigurable("Limit")
+    @UIConfigurable("Concurrent Runs Limit")
     private Long concurrentRunsLimit;
 
     @Override

@@ -85,6 +85,11 @@ public abstract class Step<D> implements ConfigurationSettings {
         return contextMap.get(new FlowRunIdentifier(runId)).getData();
     }
 
+    public Throwable getException() {
+        String runId = MDC.get("runId");
+        return contextMap.get(new FlowRunIdentifier(runId)).getException();
+    }
+
     protected void setData(D data) {
         String runId = MDC.get("runId");
         contextMap.get(new FlowRunIdentifier(runId)).setData(data);
@@ -244,5 +249,7 @@ public abstract class Step<D> implements ConfigurationSettings {
     public Duration getProbeTimeout(FlowRunIdentifier flowRunIdentifier) {
         return getContext(flowRunIdentifier).getTimeout();
     }
+
+
 
 }
