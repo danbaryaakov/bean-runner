@@ -29,4 +29,5 @@ public @interface RunRetentionConfig {
     boolean clearFailedRuns() default false;
     long successfulTTLMillis() default 5000;
     long failureTTLMillis() default 5000;
+    boolean showInUI() default true;
 }

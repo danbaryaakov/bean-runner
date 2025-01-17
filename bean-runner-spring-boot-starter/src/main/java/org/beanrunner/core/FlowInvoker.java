@@ -21,6 +21,7 @@
 package org.beanrunner.core;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.beanrunner.core.annotations.OnComplete;
 import org.beanrunner.core.annotations.StepHidden;
 import org.slf4j.MDC;
@@ -31,6 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
+@Slf4j
 @StepHidden
 public class FlowInvoker<P, R> extends Step<R> {
 
@@ -50,16 +52,16 @@ public class FlowInvoker<P, R> extends Step<R> {
         this.lastStep = lastStep;
     }
 
-    public final synchronized String runAsync(P parameter) {
+    public final String runAsync(P parameter) {
         return runAsync(parameter, null, null);
     }
 
-    public final synchronized String runAsync(P parameter, BiConsumer<String, R> consumer) {
+    public final String runAsync(P parameter, BiConsumer<String, R> consumer) {
         return runAsync(parameter, consumer, null);
     }
 
 
-    public final synchronized String runAsync(P parameter, BiConsumer<String, R> consumer, BiConsumer<String, List<Throwable>> errorConsumer) {
+    public final String runAsync(P parameter, BiConsumer<String, R> consumer, BiConsumer<String, List<Throwable>> errorConsumer) {
         FlowRunIdentifier identifier = StaticTransactionManagerHolder.getBean(StepManager.class).executeFlow(firstStep, parameter, true, getSourceName(), getSourceIconPath());
         if (consumer != null) {
             asyncCallables.put(identifier.getId(), consumer);
@@ -115,6 +117,7 @@ public class FlowInvoker<P, R> extends Step<R> {
             FlowRunIdentifier flowRunIdentifier = taskRunIdentifiers.remove(identifier);
 
             if (flowRunIdentifier == null) {
+                log.error("No run identifier found for {}", identifier);
                 return;
             }
 

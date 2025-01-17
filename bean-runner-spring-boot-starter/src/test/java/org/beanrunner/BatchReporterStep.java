@@ -20,10 +20,12 @@
 
 package org.beanrunner;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.beanrunner.core.Step;
 import org.beanrunner.core.annotations.OnSuccess;
 import org.beanrunner.core.annotations.StepIcon;
 import org.beanrunner.core.annotations.StepSize;
+import org.beanrunner.core.annotations.UIConfigurable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,9 +41,11 @@ public abstract class BatchReporterStep<D> extends Step<D> {
 
     private long lastExecutionTime;
 
-
     @OnSuccess
     private final Step<D> inputStep;
+
+    @JsonProperty
+    @UIConfigurable("Batch Size")
     private final int batchSize;
 
     private final List<D> batch;

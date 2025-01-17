@@ -162,8 +162,8 @@ public class MainView extends VerticalLayout implements StepListener, HasDynamic
     private VerticalLayout pnlConfigureTaskSettings = new VerticalLayout();
     private ComboBox<RootStepProfile> cmbProfiles = new ComboBox<>();
 
-    private Debouncer updateTasksDebouncer = new Debouncer(1000);
-    private Debouncer updateIRunIdentifierDebouncer = new Debouncer(1000);
+    private Debouncer updateTasksDebouncer = new Debouncer(2000);
+    private Debouncer updateIRunIdentifierDebouncer = new Debouncer(3000);
 
     private Button btnRewind = new Button("Rewind", VaadinIcon.REPLY.create());
     private Button btnExpandCollapse = new Button("Expand", VaadinIcon.EXPAND.create());
@@ -1212,14 +1212,14 @@ public class MainView extends VerticalLayout implements StepListener, HasDynamic
 
         updateTasksDebouncer.debounce(rootTask.getClass().getSimpleName(), () -> {
             getUI().ifPresent(ui2 -> ui2.access(() -> {
-                dataProvider.refreshItem(rootTask);
+                dataProvider.refreshAll();
             }));
         });
 
         if (rootTask == selectedFlow) {
             updateIRunIdentifierDebouncer.debounce("", () -> {
                 getUI().ifPresent(ui2 -> ui2.access(() -> {
-                    identifierDataProvider.refreshAll();
+                    identifierDataProvider.refreshItem(identifier);
                 }));
             });
         }

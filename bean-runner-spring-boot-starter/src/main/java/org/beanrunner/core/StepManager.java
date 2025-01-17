@@ -245,7 +245,15 @@ public class StepManager {
         firstStep.getContext(identifier).setData(parameter);
         identifier.setInvocationType(InvocationType.MANUAL);
         executorService.submit(() -> executeStep(firstStep, identifier, 1));
-        notifyRunAdded(firstStep, identifier, !isBackground);
+        boolean showInUI = true;
+        if (firstStep.getClass().isAnnotationPresent(RunRetentionConfig.class)) {
+            RunRetentionConfig config = firstStep.getClass().getAnnotation(RunRetentionConfig.class);
+            showInUI = config.showInUI();
+        }
+        if (showInUI) {
+            notifyRunAdded(firstStep, identifier, !isBackground);
+        }
+
         return identifier;
     }
 

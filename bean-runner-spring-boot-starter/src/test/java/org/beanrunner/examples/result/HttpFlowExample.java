@@ -21,7 +21,7 @@ import org.springframework.stereotype.Component;
         It also demonstrates an experimental batch processing step that's triggered once N data objects 
         are received from its input step.
         """)
-@RunRetentionConfig(clearSuccessfulRuns = true, clearFailedRuns = true, successfulTTLMillis = 1000, failureTTLMillis = 10000)
+@RunRetentionConfig(showInUI = false, clearSuccessfulRuns = true, clearFailedRuns = true, successfulTTLMillis = 200, failureTTLMillis = 200)
 public class HttpFlowExample extends Step<Void> {
 
     @Override
