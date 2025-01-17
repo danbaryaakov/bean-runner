@@ -86,15 +86,19 @@ public class LogsView extends VerticalLayout implements LogListener {
     }
 
     @Override
-    public synchronized void logEventAdded(LogEventAddedEvent event) {
+    public void logEventAdded(LogEventAddedEvent event) {
         if (selectedStep != null &&
             selectedIdentifier != null &&
             mainView.getQualifierInspector().getQualifierForBean(selectedStep).equals(event.getStepId()) &&
             selectedIdentifier.getId().equals(event.getRunId())) {
-            if (! grid.containsItem(event.getEvent())) {
-                getUI().ifPresent(ui -> ui.access(() -> {
-                    grid.addItem(event.getEvent());
-                }));
+            synchronized (this) {
+                if (!grid.containsItem(event.getEvent())) {
+                    getUI().ifPresent(ui -> ui.access(() -> {
+                        grid.addItem(event.getEvent());
+                    }));
+                } else {
+                    System.out.println("exists");
+                }
             }
         }
     }

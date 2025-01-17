@@ -38,7 +38,7 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public abstract class Step<D> implements ConfigurationSettings {
 
-    private final Map<FlowRunIdentifier, StepRunContext<D>> contextMap = new ConcurrentHashMap<>();
+    protected final Map<FlowRunIdentifier, StepRunContext<D>> contextMap = new ConcurrentHashMap<>();
 
     @Getter
     @Setter

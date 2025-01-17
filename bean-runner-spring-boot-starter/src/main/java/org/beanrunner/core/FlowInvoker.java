@@ -72,46 +72,57 @@ public class FlowInvoker<P, R> extends Step<R> {
     }
 
     public final R runSync(P parameter) {
-        FlowRunIdentifier identifier = null;
 
-        identifier = StaticTransactionManagerHolder.getBean(StepManager.class).executeFlow(firstStep, parameter, false, getSourceName(), getSourceIconPath());
+        FlowRunIdentifier identifier = new FlowRunIdentifier();
         taskRunIdentifiers.put(identifier.getId(), identifier);
 
         synchronized (identifier) {
-            if (getData(identifier) != null) {
-                return getData(identifier);
-            }
+
+            StaticTransactionManagerHolder.getBean(StepManager.class).executeFlow(firstStep, parameter, identifier, false, getSourceName(), getSourceIconPath());
+
             try {
                 identifier.wait();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
+            StepStatus status = getFlowStatus(identifier);
+            if (status == StepStatus.FAILED) {
+                getExceptions(identifier).stream().findFirst().ifPresent(e -> {
+                    if (e instanceof RuntimeException) {
+                        throw (RuntimeException) e;
+                    } else {
+                        throw new RuntimeException(e);
+                    }
+                });
+            }
             return getData(identifier);
         }
     }
 
-    protected final StepStatus getFlowStatus() {
-        FlowRunIdentifier identifier = new FlowRunIdentifier(MDC.get("runId"));
+    protected final StepStatus getFlowStatus(FlowRunIdentifier identifier) {
         return StaticTransactionManagerHolder.getBean(StepManager.class).getFlowStatus(firstStep, identifier, this);
     }
 
-    protected final List<Throwable> getExceptions() {
-        FlowRunIdentifier identifier = new FlowRunIdentifier(MDC.get("runId"));
+    protected final List<Throwable> getExceptions(FlowRunIdentifier identifier) {
         return StaticTransactionManagerHolder.getBean(StepManager.class).collectFlowExceptions(firstStep, identifier);
     }
 
     @Override
-    public final synchronized void run() {
+    public final void run() {
         if (lastStep != null) {
+
             R result = lastStep.getData();
             setData(result);
             // handle async invocation
             String identifier = MDC.get("runId");
+
+            FlowRunIdentifier flowRunIdentifier = taskRunIdentifiers.remove(identifier);
+
             BiConsumer<String, R> consumer = asyncCallables.remove(identifier);
             BiConsumer<String, List<Throwable>> errorConsumer = errorConsumers.remove(identifier);
-            StepStatus flowStatus = getFlowStatus();
+            StepStatus flowStatus = getFlowStatus(flowRunIdentifier);
             if (flowStatus == StepStatus.FAILED) {
-                List<Throwable> exceptions = getExceptions();
+                List<Throwable> exceptions = getExceptions(flowRunIdentifier);
                 if (errorConsumer != null) {
                     errorConsumer.accept(identifier, exceptions);
                 }
@@ -122,12 +133,10 @@ public class FlowInvoker<P, R> extends Step<R> {
             }
 
             // wake up sync invocations
-            FlowRunIdentifier flowRunIdentifier = taskRunIdentifiers.remove(identifier);
-            if (flowRunIdentifier != null) {
-                synchronized (flowRunIdentifier) {
-                    flowRunIdentifier.notifyAll();
-                }
+            synchronized (flowRunIdentifier) {
+                flowRunIdentifier.notifyAll();
             }
+
         }
     }
 

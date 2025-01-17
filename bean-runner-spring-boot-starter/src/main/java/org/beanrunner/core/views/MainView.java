@@ -386,7 +386,6 @@ public class MainView extends VerticalLayout implements StepListener, HasDynamic
                 txtSelectedTaskDescription.setValue("");
                 spanSelectedTaskName.setText("");
             }
-            logsView.clear();
             updateTaskSidePanel(null);
             pnlTreeView.setRootTask(selectedFlow, selectedIdentifier);
 
@@ -1213,7 +1212,6 @@ public class MainView extends VerticalLayout implements StepListener, HasDynamic
 
         updateTasksDebouncer.debounce(rootTask.getClass().getSimpleName(), () -> {
             getUI().ifPresent(ui2 -> ui2.access(() -> {
-                System.out.println("Refreshing task");
                 dataProvider.refreshItem(rootTask);
             }));
         });
@@ -1221,7 +1219,6 @@ public class MainView extends VerticalLayout implements StepListener, HasDynamic
         if (rootTask == selectedFlow) {
             updateIRunIdentifierDebouncer.debounce("", () -> {
                 getUI().ifPresent(ui2 -> ui2.access(() -> {
-                    System.out.println("Refreshing identifier");
                     identifierDataProvider.refreshAll();
                 }));
             });
@@ -1246,6 +1243,17 @@ public class MainView extends VerticalLayout implements StepListener, HasDynamic
                 if (userInitiated) {
                     gridIdentifiers.select(identifier);
                 }
+            }
+        }));
+    }
+
+    @Override
+    public void runRemoved(Step<?> firstStep, FlowRunIdentifier identifier) {
+        getUI().ifPresent(ui -> ui.access(() -> {
+            if (selectedFlow == firstStep) {
+                identifiers.remove(identifier);
+                identifierDataProvider.refreshAll();
+                dataProvider.refreshItem(firstStep);
             }
         }));
     }

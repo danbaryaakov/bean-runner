@@ -16,7 +16,7 @@ public class TestController {
 
     @GetMapping("/test")
     public TestResult getRequest() {
-        return testInvoker.runSync(new TestParameter("Parameter from flow"));
+        return testInvoker.runSync(null);
     }
 
 }

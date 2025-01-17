@@ -18,10 +18,15 @@
  *
  */
 
-package org.beanrunner.core;
+package org.beanrunner.core.annotations;
 
-public interface StepListener {
-    void stepChanged(Step<?> task, FlowRunIdentifier identifier);
-    void runAdded(Step<?> task, FlowRunIdentifier identifier, boolean userInitiated);
-    void runRemoved(Step<?> firstStep, FlowRunIdentifier identifier);
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+
+@Retention(RetentionPolicy.RUNTIME)
+public @interface RunRetentionConfig {
+    boolean clearSuccessfulRuns() default false;
+    boolean clearFailedRuns() default false;
+    long successfulTTLMillis() default 5000;
+    long failureTTLMillis() default 5000;
 }

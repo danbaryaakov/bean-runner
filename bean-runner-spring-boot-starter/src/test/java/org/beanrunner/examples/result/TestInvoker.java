@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @HttpInvokable(flowId = "test")
-public class TestInvoker extends FlowInvoker<TestParameter, TestResult> {
+public class TestInvoker extends FlowInvoker<Void, TestResult> {
 
     public TestInvoker(@Autowired WR1 firstStep, @Autowired WR3 lastStep) {
         super(firstStep, lastStep);

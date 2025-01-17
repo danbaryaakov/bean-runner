@@ -18,10 +18,9 @@
  *
  */
 
-package org.beanrunner.core;
+package org.beanrunner.examples.rewind;
 
-public interface StepListener {
-    void stepChanged(Step<?> task, FlowRunIdentifier identifier);
-    void runAdded(Step<?> task, FlowRunIdentifier identifier, boolean userInitiated);
-    void runRemoved(Step<?> firstStep, FlowRunIdentifier identifier);
+import lombok.Data;
+
+public record Person(String name, int age) {
 }

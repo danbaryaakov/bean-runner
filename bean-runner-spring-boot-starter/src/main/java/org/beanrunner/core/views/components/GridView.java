@@ -151,8 +151,8 @@ public class GridView<T> extends VerticalLayout {
     }
 
     public void setItems(List<T> items) {
-        allItems = items;
-        grid.setItems(items);
+        allItems = new ArrayList<>(items);
+        grid.setItems(allItems);
     }
 
     public void setItems() {

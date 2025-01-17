@@ -228,8 +228,15 @@ public class StepManager {
         }
     }
 
+    public FlowRunIdentifier generateRunIdentifier() {
+        return new FlowRunIdentifier();
+    }
+
     public <D> FlowRunIdentifier executeFlow(Step<D> firstStep, D parameter, boolean isBackground, String source, String sourceIcon) {
-        FlowRunIdentifier identifier = new FlowRunIdentifier();
+        return this.executeFlow(firstStep, parameter, new FlowRunIdentifier(), isBackground, source, sourceIcon);
+    }
+
+    public <D> FlowRunIdentifier executeFlow(Step<D> firstStep, D parameter, FlowRunIdentifier identifier, boolean isBackground, String source, String sourceIcon) {
         identifier.setSourceName(source);
         identifier.setSourceIconPath(sourceIcon);
         identifier.setTaskId(firstStep.getClass().getSimpleName());
@@ -646,17 +653,42 @@ public class StepManager {
                 String flowId = getFlowId(firstStep);
                 identifier.setFlowStatus(rootStatus);
                 identifier.setTags(getTags(firstStep, identifier).stream().map(TaskTagItem::new).toList());
-                stepRunStorage.storeIdentifier(flowId, firstStep, identifier);
-                flattenSteps(firstStep).forEach(t -> {
-                    stepRunStorage.saveStepContext(flowId, t, identifier);
-                    appender.storeLogs(flowId, t, identifier);
-                });
+
+                RunRetentionConfig retentionConfig = firstStep.getClass().getAnnotation(RunRetentionConfig.class);
+                boolean shouldSave = true;
+                if (retentionConfig != null) {
+                    if (retentionConfig.clearSuccessfulRuns() && rootStatus == StepStatus.SUCCESS) {
+                        shouldSave = false;
+                    }
+                    if (retentionConfig.clearFailedRuns() && rootStatus == StepStatus.FAILED) {
+                        shouldSave = false;
+                    }
+                }
+                if (shouldSave) {
+                    stepRunStorage.storeIdentifier(flowId, firstStep, identifier);
+                    flattenSteps(firstStep).forEach(t -> {
+                        stepRunStorage.saveStepContext(flowId, t, identifier);
+                        appender.storeLogs(flowId, t, identifier);
+                    });
+                } else {
+                    scheduledExecutorService.schedule(() -> {
+                        deleteRun(firstStep, identifier);
+                    }, retentionConfig.successfulTTLMillis(), TimeUnit.MILLISECONDS);
+                }
             }
             if (rootStatus != StepStatus.RUNNING && rootStatus != StepStatus.READY && rootStatus != StepStatus.REWINDING && rootStatus != StepStatus.PENDING_REWIND) {
                 identifier.setRunning(false);
                 listeners.forEach(listener -> listener.stepChanged(step, identifier));
             }
         }
+    }
+
+    private void deleteRun(Step<?> firstStep, FlowRunIdentifier identifier) {
+        List<Step<?>> flattened = flattenSteps(firstStep);
+        flattened.forEach(s -> {
+            s.contextMap.remove(identifier);
+        });
+        listeners.forEach(listener -> listener.runRemoved(firstStep, identifier));
     }
 
     public List<Step<?>> flattenSteps(Step<?> firstStep) {
