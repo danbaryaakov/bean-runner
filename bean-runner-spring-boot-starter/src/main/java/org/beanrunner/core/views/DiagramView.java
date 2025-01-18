@@ -106,6 +106,10 @@ public class DiagramView extends VerticalLayout {
         add(nd);
     }
 
+    public void setClassName(String className) {
+        nd.setClassName(className);
+    }
+
     public void setSelectedFlow(Step<?> task, FlowRunIdentifier identifier) {
         boolean taskChanged = selectedRootTask != task;
         selectedRootTask = task;

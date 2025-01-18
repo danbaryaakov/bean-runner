@@ -66,6 +66,7 @@ import org.beanrunner.core.logging.CustomSpringLogbackAppender;
 import org.beanrunner.core.logging.LogEvent;
 import org.beanrunner.core.settings.ConfigurationSettings;
 import org.beanrunner.core.settings.SettingsManager;
+import org.beanrunner.core.views.components.Page;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.vaadin.addons.visjs.network.main.Edge;
@@ -92,7 +93,7 @@ import java.util.stream.Stream;
 
 @Route("")
 @JsModule("./js/copytoclipboard.js")
-public class MainView extends VerticalLayout implements StepListener, HasDynamicTitle {
+public class MainView extends Page implements StepListener, HasDynamicTitle {
 
     @Getter
     private final QualifierInspector qualifierInspector;
@@ -162,8 +163,8 @@ public class MainView extends VerticalLayout implements StepListener, HasDynamic
     private VerticalLayout pnlConfigureTaskSettings = new VerticalLayout();
     private ComboBox<RootStepProfile> cmbProfiles = new ComboBox<>();
 
-    private Debouncer updateTasksDebouncer = new Debouncer(2000);
-    private Debouncer updateIRunIdentifierDebouncer = new Debouncer(3000);
+    private Debouncer updateTasksDebouncer = new Debouncer(1000);
+    private Debouncer updateIRunIdentifierDebouncer = new Debouncer(1000);
 
     private Button btnRewind = new Button("Rewind", VaadinIcon.REPLY.create());
     private Button btnExpandCollapse = new Button("Expand", VaadinIcon.EXPAND.create());
@@ -177,8 +178,8 @@ public class MainView extends VerticalLayout implements StepListener, HasDynamic
         selectedStep = task;
         if (task != null) {
             updateTaskSidePanel(task);
-
             if (selectedIdentifier != null) {
+                setPathParameter(2, qualifierInspector.getQualifierForBean(selectedStep));
                 Object data = task.getData(selectedIdentifier);
                 if (data != null) {
                     ObjectMapper mapper = new ObjectMapper();
@@ -353,11 +354,32 @@ public class MainView extends VerticalLayout implements StepListener, HasDynamic
             return layout;
         });
 
+        onPathParameter(1, identifierId -> {
+            FlowRunIdentifier identifier = identifiers.stream().filter(i -> i.getId().equals(identifierId)).findFirst().orElse(null);
+            if (identifier != null) {
+                gridIdentifiers.select(identifier);
+                gridIdentifiers.scrollToItem(identifier);
+            }
+        });
+
+        onPathParameter(2, stepQualifier -> {
+            if (selectedFlow != null && selectedIdentifier != null) {
+                Step<?> step = stepManager.flattenSteps(selectedFlow).stream().filter(t -> qualifierInspector.getQualifierForBean(t).equals(stepQualifier)).findFirst().orElse(null);
+                if (step != null) {
+                    diagramView.selectTask(step);
+                    diagramTaskSelected(step);
+                }
+            }
+        });
+
+
         gridTasks.addSelectionListener(e -> {
             if (e.getFirstSelectedItem().isPresent()) {
 
                 pnlTreeView.clear();
                 selectedFlow = e.getFirstSelectedItem().get();
+                setPathParameter(0, qualifierInspector.getQualifierForBean(selectedFlow));
+
                 selectedFlowSteps = stepManager.flattenSteps(selectedFlow);
                 stepManager.loadFlowIdentifiersFromStorageIfNecessary(selectedFlow);
 
@@ -526,6 +548,10 @@ public class MainView extends VerticalLayout implements StepListener, HasDynamic
         gridIdentifiers.addSelectionListener(e -> {
             if (e.getFirstSelectedItem().isPresent()) {
                 selectedIdentifier = e.getFirstSelectedItem().get();
+                setPathParameter(1, selectedIdentifier.getId());
+                if (selectedStep != null) {
+                    setPathParameter(2, qualifierInspector.getQualifierForBean(selectedStep));
+                }
                 stepManager.loadAndPropagateIdentifierIfNecessary(selectedFlow, selectedIdentifier);
                 identifierDataProvider.refreshAll();
                 if (selectedFlow != null) {
@@ -725,6 +751,17 @@ public class MainView extends VerticalLayout implements StepListener, HasDynamic
         itemPositions.getSubMenu().addItem("Allow nodes to move freely", e -> {
             Dialogs.confirm("Allow nodes to move freely", "Only use this when rearranging the entire diagram, as all nodes will move. Continue?", "Yes", diagramView::enablePhysics);
         });
+
+        itemPositions.getSubMenu().addSeparator();
+
+        MenuItem canvasStyleItem = itemPositions.getSubMenu().addItem("Canvas Style");
+
+        for (CanvasStyle style : CanvasStyle.values()) {
+            canvasStyleItem.getSubMenu().addItem(style.getName(), e -> {
+                diagramView.setClassName(style.getClassName());
+            });
+        }
+
 //        pnlTaskDetailsHeader.add(btnCopyPositionsToClipboard);
 //        pnlTaskDetailsHeader.add(btnRestoreDefaultPositions);
 //        pnlTaskDetailsHeader.add(btnEnablePhysics);
@@ -912,6 +949,14 @@ public class MainView extends VerticalLayout implements StepListener, HasDynamic
 
         dataProvider = DataProvider.ofCollection(tasks);
         gridTasks.setDataProvider(dataProvider);
+
+        onPathParameter(0, param -> {
+            Step<?> flow = stepManager.getFirstSteps().stream().filter(t -> qualifierInspector.getQualifierForBean(t).equals(param)).findFirst().orElse(null);
+            if (flow != null) {
+                gridTasks.select(flow);
+                gridTasks.scrollToItem(flow);
+            }
+        });
 
     }
 
@@ -1227,9 +1272,7 @@ public class MainView extends VerticalLayout implements StepListener, HasDynamic
 
         if (rootTask == selectedFlow) {
             updateIRunIdentifierDebouncer.debounce("", () -> {
-                getUI().ifPresent(ui2 -> ui2.access(() -> {
-                    identifierDataProvider.refreshItem(identifier);
-                }));
+                getUI().ifPresent(ui2 -> ui2.access(identifierDataProvider::refreshAll));
             });
         }
         if (identifier != null && !identifier.isBackground() && identifier == selectedIdentifier ) {

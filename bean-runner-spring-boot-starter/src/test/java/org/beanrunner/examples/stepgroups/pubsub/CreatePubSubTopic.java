@@ -23,6 +23,7 @@ public class CreatePubSubTopic extends TestStep<Void> {
 
     @Override
     public void run() {
+        super.run();
         PubSubStepGroupInput input = start.getData().get(qualifier);
         log.info("Creating PubSub topic: {}", input.getTopicId());
     }

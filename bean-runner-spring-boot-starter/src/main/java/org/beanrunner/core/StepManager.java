@@ -445,7 +445,7 @@ public class StepManager {
         // invoke dependent steps (forward direction)
         if (dependentSteps != null) {
             for (Step<?> dependentStep : dependentSteps) {
-                if (dependentStep.canExecute(identifier)) {
+                if (canExecute(dependentStep, identifier)) {
                     if (dependentStep.getClass().isAnnotationPresent(StepRetry.class)) {
                         StepRetry retry = dependentStep.getClass().getAnnotation(StepRetry.class);
                         executorService.submit(() -> executeStep(dependentStep, identifier, retry.maxRetries()));
@@ -518,6 +518,123 @@ public class StepManager {
                     }
                 }
             }
+        }
+    }
+
+    public boolean canExecute(Step<?> step, FlowRunIdentifier flowRunIdentifier) {
+        synchronized (flowRunIdentifier) {
+            StepRunContext<?> context = step.getContext(flowRunIdentifier);
+
+            if (context.getStatus() != StepStatus.NOT_STARTED) {
+                return false;
+            }
+
+            Class<?> taskClass = step.getClass();
+
+            StepLogicOperator operator = StepLogicOperator.AND;
+
+            if (taskClass.isAnnotationPresent(StepTriggerLogic.class)) {
+                operator  = taskClass.getAnnotation(StepTriggerLogic.class).value();
+            }
+
+            boolean canProceed = operator == StepLogicOperator.AND;
+            boolean allConditionsMet = operator == StepLogicOperator.AND;
+
+
+            if (! canProceed) {
+                log.info("Step {} can't proceed", taskClass.getSimpleName());
+            }
+
+            // get the fields of the class
+            Field[] fields = ReflectionUtils.getFields(taskClass);
+            for (Field field : fields) {
+                // check if the field has the @OnSuccess annotation
+                if (field.isAnnotationPresent(OnSuccess.class)) {
+                    try {
+                        field.setAccessible(true);
+                        Step<?> value = (Step<?>) field.get(step);
+                        if (operator == StepLogicOperator.AND) {
+                            if (value.getStatus(flowRunIdentifier) == StepStatus.FAILED || value.getStatus(flowRunIdentifier) == StepStatus.FAILED_TRANSITIVELY) {
+                                allConditionsMet = false;
+                            }
+                            if (value.getStatus(flowRunIdentifier) == StepStatus.RUNNING || value.getStatus(flowRunIdentifier) == StepStatus.READY ||
+                                    value.getStatus(flowRunIdentifier) == StepStatus.NOT_STARTED ||
+                                    (value.getStatus(flowRunIdentifier) == StepStatus.SUCCESS && StringUtils.isNotEmpty(field.getAnnotation(OnSuccess.class).value()) && !field.getAnnotation(OnSuccess.class).value().equals(value.getContext(flowRunIdentifier).getResult())) ||
+                                    (value.getStatus(flowRunIdentifier) == StepStatus.FAILED && !field.getAnnotation(OnSuccess.class).value().equals(value.getContext(flowRunIdentifier).getResult()))) {
+                                canProceed = false;
+                            }
+                        } else if (operator == StepLogicOperator.OR) {
+                            if (value.getStatus(flowRunIdentifier) == StepStatus.SUCCESS && field.getAnnotation(OnSuccess.class).value().equals(value.getContext(flowRunIdentifier).getResult())) {
+                                allConditionsMet = true;
+                                canProceed = true;
+                                break;
+                            }
+                            if (value.getStatus(flowRunIdentifier) == StepStatus.FAILED || value.getStatus(flowRunIdentifier) == StepStatus.FAILED_TRANSITIVELY) {
+                                canProceed = true;
+                            }
+                        }
+                    } catch (IllegalAccessException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+                if (field.isAnnotationPresent(OnComplete.class)) {
+                    try {
+                        field.setAccessible(true);
+                        Step<?> value = (Step<?>) field.get(step);
+                        if (operator == StepLogicOperator.AND) {
+                            if (value.getContext(flowRunIdentifier).getStatus() != StepStatus.SUCCESS &&
+                                    value.getContext(flowRunIdentifier).getStatus() != StepStatus.FAILED &&
+                                    value.getContext(flowRunIdentifier).getStatus() != StepStatus.FAILED_TRANSITIVELY) {
+                                canProceed = false;
+                            }
+                        } else if (operator == StepLogicOperator.OR) {
+                            if (value.getContext(flowRunIdentifier).getStatus() == StepStatus.SUCCESS ||
+                                    value.getContext(flowRunIdentifier).getStatus() == StepStatus.FAILED ||
+                                    value.getContext(flowRunIdentifier).getStatus() == StepStatus.FAILED_TRANSITIVELY) {
+                                canProceed = true;
+                                allConditionsMet = true;
+                                break;
+                            }
+                        }
+                    } catch (IllegalAccessException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+                if (field.isAnnotationPresent(OnUpstreamFailure.class)) {
+                    try {
+                        field.setAccessible(true);
+                        Step<?> value = (Step<?>) field.get(step);
+                        StepStatus status = value.getContext(flowRunIdentifier).getStatus();
+                        if (operator == StepLogicOperator.AND) {
+                            if (status != StepStatus.FAILED && status != StepStatus.FAILED_TRANSITIVELY) {
+                                allConditionsMet = false;
+                            }
+                            if (status == StepStatus.RUNNING || status == StepStatus.READY || status == StepStatus.SUCCESS) {
+                                canProceed = false;
+                            }
+                        } else if (operator == StepLogicOperator.OR) {
+                            if (status == StepStatus.FAILED || status == StepStatus.FAILED_TRANSITIVELY) {
+                                canProceed = true;
+                                allConditionsMet = true;
+                                break;
+                            }
+                        }
+                    } catch (IllegalAccessException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+
+            if (allConditionsMet) {
+                if (canProceed) {
+                    context.setStatus(StepStatus.READY);
+                }
+            } else {
+                context.setStatus(StepStatus.FAILED_TRANSITIVELY);
+                return true;
+            }
+
+            return canProceed;
         }
     }
 
