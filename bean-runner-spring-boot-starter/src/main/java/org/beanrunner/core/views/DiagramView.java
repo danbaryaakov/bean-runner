@@ -32,6 +32,8 @@ import org.vaadin.addons.visjs.network.main.Edge;
 import org.vaadin.addons.visjs.network.main.NetworkDiagram;
 import org.vaadin.addons.visjs.network.main.Node;
 import org.vaadin.addons.visjs.network.options.Options;
+import org.vaadin.addons.visjs.network.options.edges.ArrowHead;
+import org.vaadin.addons.visjs.network.options.edges.Arrows;
 import org.vaadin.addons.visjs.network.options.edges.Edges;
 import org.vaadin.addons.visjs.network.options.nodes.NodeColor;
 import org.vaadin.addons.visjs.network.options.nodes.Nodes;
