@@ -20,43 +20,10 @@ html {
 /*    background-color: inherit; !* or specify a color of your choice *!*/
 /*}*/
 .diagram {
-    background-image: url("../../../images/p6.png");
+    background: #f3f3f3;
     /*background-size: cover;*/
     /*background-repeat: repeat;*/
 }
-
-.diagram-paper {
-    background-image: url("../../../images/p6.png");
-    background-size: cover;
-    background-repeat: repeat;
-}
-
-.diagram-aluminum {
-    background-image: url("../../../images/asfalt-light.png");
-    background-size: cover;
-    background-repeat: repeat;
-}
-
-.diagram-noise {
-    background-image: url("../../../images/light_noise_diagonal.png");
-    background-size: cover;
-    background-repeat: repeat;
-}
-
-.diagram-paper-2 {
-    background-image: url("../../../images/groovepaper.png");
-    background-size: cover;
-    background-repeat: repeat;
-}
-
-.diagram-clouds {
-    background-color: #ebf1fa;
-    background-image: url("../../../images/back-pattern.png");
-    /*background-size: cover;*/
-    /*background-repeat: repeat;*/
-}
-
-
 
 .configuration-actions {
     height: 55px;

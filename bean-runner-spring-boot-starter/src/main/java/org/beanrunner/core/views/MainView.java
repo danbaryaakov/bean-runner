@@ -752,19 +752,6 @@ public class MainView extends Page implements StepListener, HasDynamicTitle {
             Dialogs.confirm("Allow nodes to move freely", "Only use this when rearranging the entire diagram, as all nodes will move. Continue?", "Yes", diagramView::enablePhysics);
         });
 
-        itemPositions.getSubMenu().addSeparator();
-
-        MenuItem canvasStyleItem = itemPositions.getSubMenu().addItem("Canvas Style");
-
-        for (CanvasStyle style : CanvasStyle.values()) {
-            canvasStyleItem.getSubMenu().addItem(style.getName(), e -> {
-                diagramView.setClassName(style.getClassName());
-            });
-        }
-
-//        pnlTaskDetailsHeader.add(btnCopyPositionsToClipboard);
-//        pnlTaskDetailsHeader.add(btnRestoreDefaultPositions);
-//        pnlTaskDetailsHeader.add(btnEnablePhysics);
         pnlTaskDetailsHeader.add(btnSavePositions);
         pnlTaskDetailsHeader.add(btnFitToView);
 
