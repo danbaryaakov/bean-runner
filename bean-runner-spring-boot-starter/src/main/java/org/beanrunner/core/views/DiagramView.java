@@ -256,7 +256,7 @@ public class DiagramView extends VerticalLayout {
                         field.setAccessible(true);
                         if (field.get(dependentTask) == task) {
                             if (field.isAnnotationPresent(OnSuccess.class)) {
-                                edge.setColor("#71bf97");
+                                edge.setColor("#3bbf5e");
                             } else if (field.isAnnotationPresent(OnUpstreamFailure.class)) {
                                 edge.setColor("#ff7d95");
                             } else if (field.isAnnotationPresent(OnComplete.class)) {
