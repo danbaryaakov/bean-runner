@@ -30,5 +30,25 @@ public enum StepStatus {
     PENDING_REWIND,
     REWINDING,
     REWIND_SUCCESS,
-    REWIND_FAILED
+    REWIND_FAILED,
+    PAUSED_FAILURE,
+    PAUSED_SUCCESS,
+    PAUSED_PROBING,
+    PAUSED_REWIND_SUCCESS,
+    PAUSED_REWIND_FAILURE,
+
+    ;
+
+    public boolean isPaused() {
+        return this == PAUSED_FAILURE || this == PAUSED_SUCCESS || this == PAUSED_PROBING || this == PAUSED_REWIND_SUCCESS || this == PAUSED_REWIND_FAILURE;
+    }
+
+    public boolean isFailed() {
+        return this == FAILED || this == PAUSED_FAILURE;
+    }
+
+    public boolean isRewinding() {
+        return this == PENDING_REWIND || this == REWINDING || this == PAUSED_REWIND_SUCCESS || this == PAUSED_REWIND_FAILURE;
+    }
+
 }

@@ -21,7 +21,7 @@ public class TestStep<D> extends Step<D> {
     @Override
     public void run() {
         log.info("Starting {}", getClass().getSimpleName());
-        sleep(600);
+        sleep(1000);
         if (isFail) {
             throw new RuntimeException("Simulating failure");
         }
@@ -30,8 +30,8 @@ public class TestStep<D> extends Step<D> {
 
     @Override
     public void rewind() {
-        log.info("Rewd .inding {}", getClass().getSimpleName());
-        sleep(600);
+        log.info("Rewinding {}", getClass().getSimpleName());
+        sleep(1000);
         if (isRewindFail) {
             throw new RuntimeException("Simulating rewind failure");
         }

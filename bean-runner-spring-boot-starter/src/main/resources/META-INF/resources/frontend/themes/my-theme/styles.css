@@ -162,7 +162,7 @@ vaadin-split-layout::part(splitter) {
 .loader-rewinding {
     width: 48px;
     height: 48px;
-    border: 3px solid #9e4d1b;
+    border: 3px solid #ba5415;
     border-bottom-color: transparent;
     border-radius: 50%;
     display: inline-block;
@@ -294,7 +294,12 @@ vaadin-tabs::part(tabs) {
 }
 
 .rewind-button {
-    background: linear-gradient(#26c776, #1b9859);
+    background: linear-gradient(#ed6817, #ba5d1b);
+    color: white;
+}
+
+.resume-button {
+    background: linear-gradient(#26a81a, #1d7816);
     color: white;
 }
 

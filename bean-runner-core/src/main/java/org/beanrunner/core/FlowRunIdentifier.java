@@ -61,6 +61,11 @@ public class FlowRunIdentifier {
 
     private boolean background;
 
+    private boolean paused;
+
+    @JsonIgnore
+    private boolean pauseRequested;
+
     public FlowRunIdentifier() {
         id = UUID.randomUUID().toString();
         this.timestamp = System.currentTimeMillis();

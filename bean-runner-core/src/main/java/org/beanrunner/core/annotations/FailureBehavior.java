@@ -18,32 +18,9 @@
  *
  */
 
-package org.beanrunner.core;
+package org.beanrunner.core.annotations;
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-
-import java.util.HashMap;
-import java.util.Map;
-
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-public class StepGroupData<D> {
-
-    @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "@bodyClass")
-    Map<String, D> data = new HashMap<>();;
-
-    public D get(String qualifier) {
-        return data.get(qualifier);
-    }
-
-    public void put(String qualifier, D value) {
-        data.put(qualifier, value);
-    }
-
+public enum FailureBehavior {
+    PAUSE,
+    REWIND,
 }

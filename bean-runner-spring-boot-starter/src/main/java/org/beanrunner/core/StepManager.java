@@ -56,9 +56,9 @@ public class StepManager {
     private final Optional<TaskScheduler> scheduler;
     @Getter
     private final Map<Step<?>, List<Step<?>>> stepDependencyTree = new HashMap<>();
-    @Getter
-    private final ExecutorService executorService = Executors.newCachedThreadPool();
-    private final ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(4);
+
+    private final StepExecutors executors;
+
     private final QualifierInspector qualifierInspector;
     private final StepRunStorage stepRunStorage;
     private final Map<Step<?>, Long> identifierStartLoadTime = new ConcurrentHashMap<>();
@@ -76,7 +76,9 @@ public class StepManager {
                        @Autowired QualifierInspector qualifierInspector,
                        @Autowired StepRunStorage stepRunStorage,
                        @Autowired CustomSpringLogbackAppender appender,
-                       @Autowired StorageService storageService) {
+                       @Autowired StorageService storageService,
+                       @Autowired StepExecutors executors) {
+        this.executors = executors;
         this.allSteps = steps;
         this.scheduler = scheduler;
         this.qualifierInspector = qualifierInspector;
@@ -106,6 +108,11 @@ public class StepManager {
                 }, new CronTrigger(runAt.value()));
             }
         }));
+
+        for (Step<?> firstStep : firstSteps) {
+            executors.addListener(id -> runStopped(firstStep, id));
+        }
+
     }
 
     public void loadFlowIdentifiersFromStorageIfNecessary(Step<?> rootStep) {
@@ -246,7 +253,7 @@ public class StepManager {
         identifier.setRunning(true);
         firstStep.getContext(identifier).setData(parameter);
         identifier.setInvocationType(InvocationType.MANUAL);
-        executorService.submit(() -> executeStep(firstStep, identifier, 1));
+        executors.submit(identifier, () -> executeStep(firstStep, identifier, 1));
         identifier.setBackground(isBackground);
 
         if (! identifier.isBackground()) {
@@ -272,28 +279,6 @@ public class StepManager {
             return StepStatus.FAILED;
         }
         return StepStatus.SUCCESS;
-    }
-
-    public StepStatus getFlowStatus(Step<?> firstStep, FlowRunIdentifier flowRunIdentifier, HashSet<Step<?>> visitedSteps) {
-        StepStatus status = firstStep.getStatus(flowRunIdentifier);
-        List<Step<?>> dependentSteps = stepDependencyTree.get(firstStep);
-        if (status == StepStatus.FAILED) {
-            return StepStatus.FAILED;
-        }
-        if (status == StepStatus.RUNNING || status == StepStatus.READY) {
-            return StepStatus.RUNNING;
-        }
-        if (dependentSteps != null) {
-            List<StepStatus> statuses = dependentSteps.stream().map(dependentStep -> getStepStatus(dependentStep, flowRunIdentifier, visitedSteps, false)).toList();
-            if (statuses.contains(StepStatus.RUNNING) || statuses.contains(StepStatus.READY)) {
-                return StepStatus.RUNNING;
-            }
-            if (statuses.contains(StepStatus.FAILED)) {
-                return StepStatus.FAILED;
-            }
-        }
-
-        return status;
     }
 
     public List<Throwable> collectFlowExceptions(Step<?> step, FlowRunIdentifier identifier) {
@@ -330,7 +315,7 @@ public class StepManager {
                 if (!isDone) {
                     long interval = step.getProbeInterval(flowRunIdentifier);
                     TimeUnit unit = step.getProbeTimeUnit(flowRunIdentifier);
-                    scheduledExecutorService.schedule(() -> executeProbe(step, flowRunIdentifier, Instant.now()), interval, unit);
+                    executors.schedule(flowRunIdentifier, () -> executeProbe(step, flowRunIdentifier, Instant.now()), interval, unit);
                     return;
                 }
             } catch (Throwable t) {
@@ -338,7 +323,7 @@ public class StepManager {
                 step.getContext(flowRunIdentifier).setException(t);
                 if (retiesLeft > 0 && step.getClass().isAnnotationPresent(StepRetry.class)) {
                     StepRetry retry = step.getClass().getAnnotation(StepRetry.class);
-                    scheduledExecutorService.schedule(() -> executeStep(step, flowRunIdentifier, retiesLeft - 1), retry.delay(), retry.unit());
+                    executors.schedule(flowRunIdentifier, () -> executeStep(step, flowRunIdentifier, retiesLeft - 1), retry.delay(), retry.unit());
                     return;
                 }
 
@@ -359,6 +344,15 @@ public class StepManager {
 
     private void executeProbe(Step<?> step, FlowRunIdentifier flowRunIdentifier, Instant startTime) {
         try {
+
+            synchronized (flowRunIdentifier) {
+                if (flowRunIdentifier.isPauseRequested()) {
+                    step.getContext(flowRunIdentifier).setStatus(StepStatus.PAUSED_PROBING);
+                    notifyListeners(step, flowRunIdentifier);
+                    return;
+                }
+            }
+
             Duration timeout = step.getProbeTimeout(flowRunIdentifier);
 
             putThreadContextParams(step, flowRunIdentifier);
@@ -385,7 +379,7 @@ public class StepManager {
             } else {
                 long interval = step.getProbeInterval(flowRunIdentifier);
                 TimeUnit unit = step.getProbeTimeUnit(flowRunIdentifier);
-                scheduledExecutorService.schedule(() -> executeProbe(step, flowRunIdentifier, startTime), interval, unit);
+                executors.schedule(flowRunIdentifier, () -> executeProbe(step, flowRunIdentifier, startTime), interval, unit);
             }
         } catch (Throwable t) {
             log.error("Exception while probing step {}", step.getClass().getSimpleName(), t);
@@ -395,77 +389,94 @@ public class StepManager {
     }
 
     private void setStatusAndContinue(Step<?> step, FlowRunIdentifier identifier, StepStatus status) {
-
-        step.getContext(identifier).setStatus(status);
-
-        List<Step<?>> dependentSteps = stepDependencyTree.get(step);
-
-        putThreadContextParams(step, identifier);
-
-        boolean isUpstreamBocked = false;
         synchronized (identifier) {
-            isUpstreamBocked = (dependentSteps != null && dependentSteps.stream().filter(dependentStep -> isOnSuccess(step, dependentStep)).anyMatch(dependentStep -> dependentStep.getStatus(identifier) == StepStatus.FAILED_TRANSITIVELY));
-        }
-        // handle rewind on error
-        if (status == StepStatus.FAILED || isUpstreamBocked) {
-            // step has failed or has a dependent task that is blocked due to failure
-            if (status == StepStatus.SUCCESS) {
-                try {
-                    synchronized (identifier) {
-                        step.getContext(identifier).setStatus(StepStatus.REWINDING);
-                        notifyListeners(step, identifier);
-                    }
-                    step.rewind();
-                    step.getContext(identifier).setStatus(StepStatus.REWIND_SUCCESS);
-                } catch (Throwable t) {
-                    log.error("Exception while rewinding task {}", step.getClass().getSimpleName(), t);
-                    step.getContext(identifier).setStatus(StepStatus.REWIND_FAILED);
+            step.getContext(identifier).setStatus(status);
+
+            List<Step<?>> dependentSteps = stepDependencyTree.get(step);
+
+            putThreadContextParams(step, identifier);
+
+            boolean isUpstreamBlocked = false;
+
+
+            isUpstreamBlocked = (dependentSteps != null && dependentSteps.stream().filter(dependentStep -> isOnSuccess(step, dependentStep)).anyMatch(dependentStep -> dependentStep.getStatus(identifier) == StepStatus.FAILED_TRANSITIVELY));
+
+            // handle rewind on error
+            if (status == StepStatus.FAILED) {
+                FailureBehavior failureBehavior = getFailureBehavior(step);
+                if (failureBehavior == FailureBehavior.PAUSE) {
+                    identifier.setPauseRequested(true);
+                    step.getContext(identifier).setStatus(StepStatus.PAUSED_FAILURE);
+                    notifyListeners(step, identifier);
                 }
             }
-            synchronized (identifier) {
-                // go over all backward dependencies
-                for (Field field : ReflectionUtils.getFields(step.getClass())) {
-                    if (field.isAnnotationPresent(OnSuccess.class)) {
-                        try {
-                            field.setAccessible(true);
-                            Step<?> dependency = (Step<?>) field.get(step);
-                            if (canRewind(dependency, identifier)) {
-                                executorService.submit(() -> rewind(dependency, identifier, true));
+
+            if (status == StepStatus.SUCCESS && identifier.isPauseRequested()) {
+                step.getContext(identifier).setStatus(StepStatus.PAUSED_SUCCESS);
+//                System.out.println("setStatusAndContinue: Setting " + step.getClass().getSimpleName() + " to PAUSED_SUCCESS");
+                notifyListeners(step, identifier);
+                return;
+            }
+
+            if (status == StepStatus.FAILED || isUpstreamBlocked) {
+                // step has failed or has a dependent task that is blocked due to failure
+                if (status == StepStatus.SUCCESS) {
+                    try {
+                        step.getContext(identifier).setStatus(StepStatus.REWINDING);
+                        notifyListeners(step, identifier);
+
+                        step.rewind();
+                        step.getContext(identifier).setStatus(StepStatus.REWIND_SUCCESS);
+                    } catch (Throwable t) {
+                        log.error("Exception while rewinding task {}", step.getClass().getSimpleName(), t);
+                        step.getContext(identifier).setStatus(StepStatus.REWIND_FAILED);
+                    }
+                }
+                if (!identifier.isPauseRequested()) {
+                    // rewind
+                    // go over all backward dependencies
+                    for (Field field : ReflectionUtils.getFields(step.getClass())) {
+                        if (field.isAnnotationPresent(OnSuccess.class)) {
+                            try {
+                                field.setAccessible(true);
+                                Step<?> dependency = (Step<?>) field.get(step);
+                                if (canRewind(dependency, identifier)) {
+                                    executors.submit(identifier, () -> rewind(dependency, identifier, true));
+                                }
+                            } catch (IllegalAccessException e) {
+                                throw new RuntimeException(e);
                             }
-                        } catch (IllegalAccessException e) {
-                            throw new RuntimeException(e);
                         }
                     }
                 }
             }
-        }
-        if (status == StepStatus.FAILED_TRANSITIVELY) {
-            propagateFailuresBack(step, identifier);
-        }
-        // invoke dependent steps (forward direction)
-        if (dependentSteps != null) {
-            for (Step<?> dependentStep : dependentSteps) {
-                if (canExecute(dependentStep, identifier)) {
-                    if (dependentStep.getClass().isAnnotationPresent(StepRetry.class)) {
-                        StepRetry retry = dependentStep.getClass().getAnnotation(StepRetry.class);
-                        executorService.submit(() -> executeStep(dependentStep, identifier, retry.maxRetries()));
-                    } else {
-                        executorService.submit(() -> executeStep(dependentStep, identifier, 1));
+            if (status == StepStatus.FAILED_TRANSITIVELY) {
+                propagateFailuresBack(step, identifier);
+            }
+            // invoke dependent steps (forward direction)
+            if (dependentSteps != null) {
+                if (!identifier.isPauseRequested() || status == StepStatus.FAILED || status == StepStatus.FAILED_TRANSITIVELY) {
+                    for (Step<?> dependentStep : dependentSteps) {
+                        if (canExecute(dependentStep, identifier)) {
+                            if (dependentStep.getClass().isAnnotationPresent(StepRetry.class)) {
+                                StepRetry retry = dependentStep.getClass().getAnnotation(StepRetry.class);
+                                executors.submit(identifier, () -> executeStep(dependentStep, identifier, retry.maxRetries()));
+                            } else {
+                                executors.submit(identifier, () -> executeStep(dependentStep, identifier, 1));
+                            }
+                        }
                     }
-
                 }
             }
-        }
 
-        synchronized (identifier) {
             if (step.getStatus(identifier) == StepStatus.SUCCESS && step.getClass().isAnnotationPresent(StepRewindTrigger.class)) {
                 StepRewindTrigger trigger = step.getClass().getAnnotation(StepRewindTrigger.class);
                 StepRewindType type = trigger.value();
                 if (type == StepRewindType.AUTOMATIC) {
                     step.getContext(identifier).setStatus(StepStatus.PENDING_REWIND);
                     notifyListeners(step, identifier);
-                    executorService.submit(() -> rewind(step, identifier, false));
-                } else if (type == StepRewindType.MANUAL){
+                    executors.submit(identifier, () -> rewind(step, identifier, false));
+                } else if (type == StepRewindType.MANUAL) {
                     identifier.setRewindArmed(true);
                 }
             }
@@ -491,10 +502,75 @@ public class StepManager {
     }
 
     public void rewindAllRewindableSteps(Step<?> firstStep, FlowRunIdentifier identifier) {
-        List<Step<?>> rewindableSteps = flattenSteps(firstStep).stream().filter(t -> t.getClass().isAnnotationPresent(StepRewindTrigger.class)).toList();
-        for (Step<?> step : rewindableSteps) {
-            if (step.getStatus(identifier) == StepStatus.SUCCESS) {
-                executorService.submit(() -> rewind(step, identifier, false));
+        identifier.setRunning(true);
+        identifier.setPaused(false);
+        identifier.setPauseRequested(false);
+
+        List<Step<?>> flattened = flattenSteps(firstStep);
+
+        List<Step<?>> pausedFail = flattened.stream().filter(s -> s.getContext(identifier).getStatus() == StepStatus.PAUSED_FAILURE).toList();
+        List<Step<?>> pausedSuccess = flattened.stream().filter(s -> s.getContext(identifier).getStatus() == StepStatus.PAUSED_SUCCESS).toList();
+        List<Step<?>> pausedProbing = flattened.stream().filter(s -> s.getContext(identifier).getStatus() == StepStatus.PAUSED_PROBING).toList();
+        List<Step<?>> pausedRewindSuccess = flattened.stream().filter(s -> s.getContext(identifier).getStatus() == StepStatus.PAUSED_REWIND_SUCCESS).toList();
+        List<Step<?>> pausedRewindFailures = flattened.stream().filter(s -> s.getContext(identifier).getStatus() == StepStatus.PAUSED_REWIND_FAILURE).toList();
+
+        pausedRewindFailures.forEach(s -> {
+            s.getContext(identifier).setStatus(StepStatus.PENDING_REWIND);
+            notifyListeners(s, identifier);
+            executors.submit(identifier, () -> rewind(s, identifier, true));
+        });
+
+        pausedRewindSuccess.forEach(s -> {
+            s.getContext(identifier).setStatus(StepStatus.REWIND_SUCCESS);
+            notifyListeners(s, identifier);
+            for (Field field : ReflectionUtils.getFields(s.getClass())) {
+                if (field.isAnnotationPresent(OnSuccess.class)) {
+                    try {
+                        field.setAccessible(true);
+                        Step<?> dependency = (Step<?>) field.get(s);
+                        if (canRewind(dependency, identifier)) {
+                            executors.submit(identifier, () -> rewind(dependency, identifier, false));
+                        }
+                    } catch (IllegalAccessException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+        });
+
+        if (!pausedFail.isEmpty() || !pausedSuccess.isEmpty() || !pausedProbing.isEmpty()) {
+            // flow is paused
+            identifier.setPaused(false);
+            identifier.setPauseRequested(false);
+            for (Step<?> step : pausedSuccess) {
+                executors.submit(identifier, () -> rewind(step, identifier, false));
+            }
+            for (Step<?> step : pausedFail) {
+                step.getContext(identifier).setStatus(StepStatus.FAILED);
+                notifyListeners(step, identifier);
+                for (Field field : ReflectionUtils.getFields(step.getClass())) {
+                    if (field.isAnnotationPresent(OnSuccess.class)) {
+                        try {
+                            field.setAccessible(true);
+                            Step<?> dependency = (Step<?>) field.get(step);
+                            if (canRewind(dependency, identifier)) {
+                                executors.submit(identifier, () -> rewind(dependency, identifier, false));
+                            }
+                        } catch (IllegalAccessException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                }
+            }
+            for (Step<?> step : pausedProbing) {
+                executors.submit(identifier, () -> rewind(step, identifier, false));
+            }
+        } else {
+               List<Step<?>> rewindableSteps = flattened.stream().filter(t -> t.getClass().isAnnotationPresent(StepRewindTrigger.class)).toList();
+            for (Step<?> step : rewindableSteps) {
+                if (step.getStatus(identifier) == StepStatus.SUCCESS) {
+                    executors.submit(identifier, () -> rewind(step, identifier, false));
+                }
             }
         }
     }
@@ -510,8 +586,14 @@ public class StepManager {
                             dependency.getContext(identifier).setStatus(StepStatus.FAILED_TRANSITIVELY);
                             notifyListeners(dependency, identifier);
                             propagateFailuresBack(dependency, identifier);
-                        } else if (dependency.getContext(identifier).getStatus() == StepStatus.SUCCESS) {
-                            executorService.submit(() -> rewind(dependency, identifier, true));
+                        } else if (dependency.getContext(identifier).getStatus() == StepStatus.SUCCESS && hasNoActiveDependentSteps(dependency, identifier)) {
+                            if (!identifier.isPauseRequested()) {
+                                executors.submit(identifier, () -> rewind(dependency, identifier, true));
+                            } else {
+                                dependency.getContext(identifier).setStatus(StepStatus.PAUSED_SUCCESS);
+//                                System.out.println("propagateBackwards: Setting " + step.getClass().getSimpleName() + " to PAUSED_SUCCESS");
+                                notifyListeners(dependency, identifier);
+                            }
                         }
                     } catch (IllegalAccessException e) {
                         throw new RuntimeException(e);
@@ -519,6 +601,87 @@ public class StepManager {
                 }
             }
         }
+    }
+
+    private boolean hasNoActiveDependentSteps(Step<?> step, FlowRunIdentifier identifier) {
+        List<Step<?>> dependentSteps = stepDependencyTree.get(step);
+        if (dependentSteps == null) {
+            return true;
+        }
+        return dependentSteps.stream().allMatch(dependentStep -> dependentStep.getStatus(identifier) == StepStatus.NOT_STARTED ||
+                dependentStep.getStatus(identifier) == StepStatus.FAILED_TRANSITIVELY);
+    }
+
+    public void pause(FlowRunIdentifier identifier) {
+        identifier.setPauseRequested(true);
+    }
+
+    public void resume(Step<?> firstStep, FlowRunIdentifier identifier) {
+        List<Step<?>> flattened = flattenSteps(firstStep);
+        identifier.setPaused(false);
+        identifier.setPauseRequested(false);
+        identifier.setOverrideDisplayValues(false);
+        identifier.setRunning(true);
+
+        // mark all transitive failed steps as NOT_STARTED
+        List<Step<?>> failedTransitively = flattened.stream().filter(s -> s.getContext(identifier).getStatus() == StepStatus.FAILED_TRANSITIVELY).toList();
+        failedTransitively.forEach(s -> {
+            s.getContext(identifier).setStatus(StepStatus.NOT_STARTED);
+            notifyListeners(s, identifier);
+        });
+        // TODO: also clear any steps downstream of the transitive failures (onFailure, OnComplete etc)
+
+        List<Step<?>> pausedFail = flattened.stream().filter(s -> s.getContext(identifier).getStatus() == StepStatus.PAUSED_FAILURE).toList();
+        List<Step<?>> pausedSuccess = flattened.stream().filter(s -> s.getContext(identifier).getStatus() == StepStatus.PAUSED_SUCCESS).toList();
+        List<Step<?>> pausedProbing = flattened.stream().filter(s -> s.getContext(identifier).getStatus() == StepStatus.PAUSED_PROBING).toList();
+        List<Step<?>> pausedRewindSuccess = flattened.stream().filter(s -> s.getContext(identifier).getStatus() == StepStatus.PAUSED_REWIND_SUCCESS).toList();
+        List<Step<?>> pausedRewindFailures = flattened.stream().filter(s -> s.getContext(identifier).getStatus() == StepStatus.PAUSED_REWIND_FAILURE).toList();
+
+        pausedFail.forEach(s -> {
+            s.getContext(identifier).setStatus(StepStatus.READY);
+            if (s.getClass().isAnnotationPresent(StepRetry.class)) {
+                StepRetry retry = s.getClass().getAnnotation(StepRetry.class);
+                executors.submit(identifier, () -> executeStep(s, identifier, retry.maxRetries()));
+            } else {
+                executors.submit(identifier, () -> executeStep(s, identifier, 1));
+            }
+        });
+
+        pausedSuccess.forEach(s -> {
+            setStatusAndContinue(s, identifier, StepStatus.SUCCESS);
+        });
+
+        pausedProbing.forEach(s -> {
+            long interval = s.getProbeInterval(identifier);
+            TimeUnit unit = s.getProbeTimeUnit(identifier);
+            s.getContext(identifier).setStatus(StepStatus.RUNNING);
+            notifyListeners(s, identifier);
+            executors.schedule(identifier, () -> executeProbe(s, identifier, Instant.now()), interval, unit);
+        });
+
+        pausedRewindFailures.forEach(s -> {
+            s.getContext(identifier).setStatus(StepStatus.PENDING_REWIND);
+            notifyListeners(s, identifier);
+            executors.submit(identifier, () -> rewind(s, identifier, true));
+        });
+
+        pausedRewindSuccess.forEach(s -> {
+            s.getContext(identifier).setStatus(StepStatus.REWIND_SUCCESS);
+            notifyListeners(s, identifier);
+            for (Field field : ReflectionUtils.getFields(s.getClass())) {
+                if (field.isAnnotationPresent(OnSuccess.class)) {
+                    try {
+                        field.setAccessible(true);
+                        Step<?> dependency = (Step<?>) field.get(s);
+                        if (canRewind(dependency, identifier)) {
+                            executors.submit(identifier, () -> rewind(dependency, identifier, false));
+                        }
+                    } catch (IllegalAccessException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+        });
     }
 
     public boolean canExecute(Step<?> step, FlowRunIdentifier flowRunIdentifier) {
@@ -554,7 +717,7 @@ public class StepManager {
                         field.setAccessible(true);
                         Step<?> value = (Step<?>) field.get(step);
                         if (operator == StepLogicOperator.AND) {
-                            if (value.getStatus(flowRunIdentifier) == StepStatus.FAILED || value.getStatus(flowRunIdentifier) == StepStatus.FAILED_TRANSITIVELY) {
+                            if (value.getStatus(flowRunIdentifier).isFailed() || value.getStatus(flowRunIdentifier) == StepStatus.FAILED_TRANSITIVELY) {
                                 allConditionsMet = false;
                             }
                             if (value.getStatus(flowRunIdentifier) == StepStatus.RUNNING || value.getStatus(flowRunIdentifier) == StepStatus.READY ||
@@ -569,7 +732,7 @@ public class StepManager {
                                 canProceed = true;
                                 break;
                             }
-                            if (value.getStatus(flowRunIdentifier) == StepStatus.FAILED || value.getStatus(flowRunIdentifier) == StepStatus.FAILED_TRANSITIVELY) {
+                            if (value.getStatus(flowRunIdentifier).isFailed() || value.getStatus(flowRunIdentifier) == StepStatus.FAILED_TRANSITIVELY) {
                                 canProceed = true;
                             }
                         }
@@ -682,10 +845,29 @@ public class StepManager {
             }
             step.rewind();
             step.getContext(identifier).setStatus(StepStatus.REWIND_SUCCESS);
+
+            if (identifier.isPauseRequested()) {
+                step.getContext(identifier).setStatus(StepStatus.PAUSED_REWIND_SUCCESS);
+                notifyListeners(step, identifier);
+                return;
+            }
+
         } catch (Throwable t) {
             log.error("Exception while rewinding step {}", step.getClass().getSimpleName(), t);
             step.getContext(identifier).setStatus(StepStatus.REWIND_FAILED);
+
+            if (getFailureBehavior(step) == FailureBehavior.PAUSE) {
+                identifier.setPauseRequested(true);
+            }
+
+            if (identifier.isPauseRequested()) {
+                step.getContext(identifier).setStatus(StepStatus.PAUSED_REWIND_FAILURE);
+                notifyListeners(step, identifier);
+                return;
+            }
         }
+
+
 
         for (Field field : ReflectionUtils.getFields(step.getClass())) {
             if (field.isAnnotationPresent(OnSuccess.class)) {
@@ -693,7 +875,7 @@ public class StepManager {
                     field.setAccessible(true);
                     Step<?> dependency = (Step<?>) field.get(step);
                     if (canRewind(dependency, identifier)) {
-                        executorService.submit(() -> rewind(dependency, identifier, isFailure));
+                        executors.submit(identifier, () -> rewind(dependency, identifier, isFailure));
                     }
                 } catch (IllegalAccessException e) {
                     throw new RuntimeException(e);
@@ -705,64 +887,42 @@ public class StepManager {
         }
     }
 
-    public StepStatus getStepStatus(Step<?> step, FlowRunIdentifier flowRunIdentifier, boolean skipSelf) {
-//        List<Step<?>> flattened = flattenTasks(step).stream().filter(t -> t != step || !skipSelf).toList();
-//        if (flattened.stream().anyMatch(t -> t.getStatus(taskRunIdentifier) == TaskStatus.RUNNING) ||
-//                flattened.stream().anyMatch(t -> t.getStatus(taskRunIdentifier) == TaskStatus.READY) ||
-//                flattened.stream().anyMatch(t -> t.getStatus(taskRunIdentifier) == TaskStatus.PENDING_REWIND) ||
-//                flattened.stream().anyMatch(t -> t.getStatus(taskRunIdentifier) == TaskStatus.REWINDING)) {
-//            return TaskStatus.RUNNING;
-//        }
-//        if (flattened.stream().anyMatch(t -> t.getStatus(taskRunIdentifier) == TaskStatus.FAILED)) {
-//            return TaskStatus.FAILED;
-//        }
-//        if (flattened.stream().anyMatch(t -> t.getStatus(taskRunIdentifier) == TaskStatus.SUCCESS ||
-//                t.getStatus(taskRunIdentifier) == TaskStatus.REWIND_SUCCESS || t.getStatus(taskRunIdentifier) == TaskStatus.REWIND_FAILED)) {
-//            return TaskStatus.SUCCESS;
-//        }
-//        return TaskStatus.NOT_STARTED;
-
-        return getStepStatus(step, flowRunIdentifier, new HashSet<>(), skipSelf);
-    }
-
-    public StepStatus getStepStatus(Step<?> step, FlowRunIdentifier flowRunIdentifier, HashSet<Step<?>> visitedSteps, boolean skipSelf) {
-        StepStatus status = step.getStatus(flowRunIdentifier);
-        if (visitedSteps.contains(step)) {
-            if (status == StepStatus.READY || status == StepStatus.RUNNING) {
-                return StepStatus.RUNNING;
-            }
-            if (status == StepStatus.PENDING_REWIND || status == StepStatus.REWINDING) {
-                return StepStatus.REWINDING;
-            }
-            return status;
-        }
-        visitedSteps.add(step);
-        List<Step<?>> dependentSteps = stepDependencyTree.get(step);
-        if (status == StepStatus.RUNNING || status == StepStatus.READY) {
+    public StepStatus getFlowStatus(FlowRunIdentifier identifier, List<Step<?>> flowSteps) {
+        if (flowSteps.stream().anyMatch(t -> t.getStatus(identifier) == StepStatus.RUNNING) ||
+                flowSteps.stream().anyMatch(t -> t.getStatus(identifier) == StepStatus.READY)) {
             return StepStatus.RUNNING;
         }
-        if (status == StepStatus.PENDING_REWIND || status == StepStatus.REWINDING) {
+        if (flowSteps.stream().anyMatch(t -> t.getStatus(identifier) == StepStatus.PENDING_REWIND) ||
+                flowSteps.stream().anyMatch(t -> t.getStatus(identifier) == StepStatus.REWINDING)) {
             return StepStatus.REWINDING;
         }
-        if (dependentSteps != null) {
-            List<StepStatus> statuses = dependentSteps.stream().map(dependentStep -> getStepStatus(dependentStep, flowRunIdentifier, visitedSteps, false)).toList();
-            if (statuses.contains(StepStatus.RUNNING) || statuses.contains(StepStatus.READY)) {
-                return StepStatus.RUNNING;
-            }
-            if (statuses.contains(StepStatus.PENDING_REWIND) || statuses.contains(StepStatus.REWINDING)) {
-                return StepStatus.REWINDING;
-            }
-            if (statuses.contains(StepStatus.FAILED)) {
-                return StepStatus.FAILED;
-            }
+        if (flowSteps.stream().anyMatch(t -> t.getStatus(identifier) == StepStatus.PAUSED_FAILURE)) {
+            return StepStatus.PAUSED_FAILURE;
         }
-        if (status == StepStatus.REWIND_FAILED || status == StepStatus.REWIND_SUCCESS) {
+        if (flowSteps.stream().anyMatch(t -> t.getStatus(identifier) == StepStatus.FAILED)) {
+            return StepStatus.FAILED;
+        }
+        if (flowSteps.stream().anyMatch(t -> t.getStatus(identifier) == StepStatus.PAUSED_PROBING)) {
+            return StepStatus.PAUSED_PROBING;
+        }
+        if (flowSteps.stream().anyMatch(t -> t.getStatus(identifier) == StepStatus.PAUSED_SUCCESS)) {
+            return StepStatus.PAUSED_SUCCESS;
+        }
+
+        if (flowSteps.stream().anyMatch(t -> t.getStatus(identifier) == StepStatus.PAUSED_REWIND_FAILURE)) {
+            return StepStatus.PAUSED_REWIND_FAILURE;
+        }
+
+        if (flowSteps.stream().anyMatch(t -> t.getStatus(identifier) == StepStatus.PAUSED_REWIND_SUCCESS)) {
+            return StepStatus.PAUSED_REWIND_SUCCESS;
+        }
+
+        if (flowSteps.stream().anyMatch(t -> t.getStatus(identifier) == StepStatus.SUCCESS ||
+                t.getStatus(identifier) == StepStatus.REWIND_SUCCESS || t.getStatus(identifier) == StepStatus.REWIND_FAILED)) {
             return StepStatus.SUCCESS;
         }
-        if (skipSelf) {
-            return StepStatus.NOT_STARTED;
-        }
-        return status;
+        return StepStatus.NOT_STARTED;
+
     }
 
     public void addListener(StepListener listener) {
@@ -775,15 +935,21 @@ public class StepManager {
 
     public void notifyListeners(Step<?> step, FlowRunIdentifier identifier) {
         listeners.forEach(listener -> listener.stepChanged(step, identifier));
-        Step<?> firstStep = getFirstStep(step);
-        if (identifier != null) {
-            StepStatus rootStatus = getStepStatus(firstStep, identifier, false);
-            if (rootStatus == StepStatus.SUCCESS || rootStatus == StepStatus.FAILED) {
-//            log.info("Storing step context for flow {} and identifier {}", getFlowId(firstStep), identifier);
+    }
+
+    private void runStopped(Step<?> firstStep, FlowRunIdentifier identifier) {
+        if (identifier != null && executors.getCounter(identifier) == 0) {
+            StepStatus rootStatus = getFlowStatus(identifier, flattenSteps(firstStep));
+            if (rootStatus == StepStatus.SUCCESS || rootStatus == StepStatus.FAILED || rootStatus.isPaused()) {
+                log.info("Storing step context for flow {} and identifier {}", getFlowId(firstStep), identifier);
                 String flowId = getFlowId(firstStep);
                 identifier.setFlowStatus(rootStatus);
                 identifier.setTags(getTags(firstStep, identifier).stream().map(TaskTagItem::new).toList());
-
+//                System.out.println("Setting identifier to not running");
+                identifier.setRunning(false);
+                if (identifier.isPauseRequested() && rootStatus.isPaused()) {
+                    identifier.setPaused(true);
+                }
                 RunRetentionConfig retentionConfig = firstStep.getClass().getAnnotation(RunRetentionConfig.class);
                 boolean shouldSave = true;
                 if (retentionConfig != null) {
@@ -801,18 +967,19 @@ public class StepManager {
                         appender.storeLogs(flowId, t, identifier);
                     });
                 } else {
-                    scheduledExecutorService.schedule(() -> {
+                    executors.schedule(identifier, () -> {
                         deleteRun(firstStep, identifier);
                     }, rootStatus == StepStatus.FAILED ? retentionConfig.failureTTLMillis() : retentionConfig.successfulTTLMillis(), TimeUnit.MILLISECONDS);
                 }
             }
-            if (rootStatus != StepStatus.RUNNING && rootStatus != StepStatus.READY && rootStatus != StepStatus.REWINDING && rootStatus != StepStatus.PENDING_REWIND) {
-                identifier.setRunning(false);
-                if (! identifier.isBackground()) {
-                    listeners.forEach(listener -> listener.stepChanged(step, identifier));
-                }
-            }
+//            if (rootStatus != StepStatus.RUNNING && rootStatus != StepStatus.READY && rootStatus != StepStatus.REWINDING && rootStatus != StepStatus.PENDING_REWIND) {
+//                if (! identifier.isBackground()) {
+//                    listeners.forEach(listener -> listener.stepChanged(step, identifier));
+//                }
+//            }
+            notifyListeners(firstStep, identifier);
         }
+
     }
 
     private void deleteRun(Step<?> firstStep, FlowRunIdentifier identifier) {
@@ -913,6 +1080,14 @@ public class StepManager {
                 });
             }
         }
+    }
+
+    FailureBehavior getFailureBehavior(Step<?> step) {
+        Step<?> firstStep = getFirstStep(step);
+        if (firstStep.getClass().isAnnotationPresent(PauseableFlow.class)) {
+            return firstStep.getClass().getAnnotation(PauseableFlow.class).value();
+        }
+        return FailureBehavior.REWIND;
     }
 
 }

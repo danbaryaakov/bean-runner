@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @Slf4j
-public class R2 extends TestStep<Void> {
+public class R2 extends TestStep<R2.Data> {
 
     @Autowired
     @OnSuccess
@@ -17,6 +17,9 @@ public class R2 extends TestStep<Void> {
     @Override
     public void run() {
         setRunProperty("Some Property", "Some Value");
+        setData(new Data("Hello, this is some data from step 2"));
         super.run();
     }
+
+    record Data(String message) {}
 }

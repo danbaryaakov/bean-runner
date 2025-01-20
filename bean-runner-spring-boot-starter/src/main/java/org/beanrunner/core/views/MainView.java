@@ -166,7 +166,11 @@ public class MainView extends Page implements StepListener, HasDynamicTitle {
     private Debouncer updateTasksDebouncer = new Debouncer(1000);
     private Debouncer updateIRunIdentifierDebouncer = new Debouncer(1000);
 
-    private Button btnRewind = new Button("Rewind", VaadinIcon.REPLY.create());
+    private Button btnPause = new Button("Pause", VaadinIcon.PAUSE.create());
+    private Button btnResume = new Button("Resume", VaadinIcon.PLAY.create());
+
+    private Button btnRewind;
+
     private Button btnExpandCollapse = new Button("Expand", VaadinIcon.EXPAND.create());
 
     @Override
@@ -235,6 +239,12 @@ public class MainView extends Page implements StepListener, HasDynamicTitle {
         setPadding(false);
         setMargin(false);
         setSpacing(false);
+
+        Image rewindImage = new Image("images/rewind.svg", "");
+        rewindImage.setWidth("19px");
+        rewindImage.setHeight("19px");
+        rewindImage.getElement().getStyle().set("vertical-align", "middle");
+        btnRewind = new Button("Rewind", rewindImage);
 
         HorizontalLayout navBar = new HorizontalLayout();
 
@@ -499,6 +509,31 @@ public class MainView extends Page implements StepListener, HasDynamicTitle {
             } else if (status == StepStatus.PENDING_REWIND || status == StepStatus.REWINDING) {
                 Loader icon = new Loader("loader-rewinding");
                 layout.add(icon);
+            } else if (status == StepStatus.PAUSED_FAILURE) {
+                Icon icon = VaadinIcon.PAUSE.create();
+                icon.setColor("red");
+                icon.setSize("16px");
+                layout.add(icon);
+            } else if (status == StepStatus.PAUSED_SUCCESS) {
+                Icon icon = VaadinIcon.PAUSE.create();
+                icon.setColor("green");
+                icon.setSize("16px");
+                layout.add(icon);
+            } else if (status == StepStatus.PAUSED_PROBING) {
+                Icon icon = VaadinIcon.PAUSE.create();
+                icon.setColor("yellow");
+                icon.setSize("16px");
+                layout.add(icon);
+            } else if (status == StepStatus.PAUSED_REWIND_FAILURE) {
+                Icon icon = VaadinIcon.PAUSE.create();
+                icon.setColor("darkred");
+                icon.setSize("16px");
+                layout.add(icon);
+            } else if (status == StepStatus.PAUSED_REWIND_SUCCESS) {
+                Icon icon = VaadinIcon.PAUSE.create();
+                icon.setColor("darkgreen");
+                icon.setSize("16px");
+                layout.add(icon);
             } else if (status == StepStatus.SUCCESS) {
                 Icon icon = VaadinIcon.CHECK.create();
                 icon.setColor("green");
@@ -559,11 +594,15 @@ public class MainView extends Page implements StepListener, HasDynamicTitle {
                     pnlTreeView.setRootTask(selectedFlow, identifier);
                     diagramView.setSelectedFlow(selectedFlow, identifier);
                 }
-                btnRewind.setVisible(selectedIdentifier.isRewindArmed());
+                StepStatus flowStatus = getFlowStatus(selectedIdentifier);
+                btnRewind.setVisible((selectedIdentifier.isRewindArmed() || selectedIdentifier.isPaused()));
+                btnResume.setVisible(selectedIdentifier.isPaused() && !flowStatus.isRewinding());
+                btnPause.setVisible(selectedFlow.getClass().isAnnotationPresent(PauseableFlow.class) && selectedIdentifier.isRunning() && !selectedIdentifier.isPaused() && !selectedIdentifier.isPauseRequested());
             } else {
                 selectedIdentifier = null;
                 diagramView.setSelectedFlow(selectedFlow, null);
                 btnRewind.setVisible(false);
+                btnResume.setVisible(false);
             }
             if (selectedStep != null && selectedIdentifier != null) {
                 logsView.setLogEvents(selectedStep, selectedIdentifier, appender.getEvents(qualifierInspector.getQualifierForBean(selectedStep), selectedIdentifier.getId()));
@@ -705,8 +744,32 @@ public class MainView extends Page implements StepListener, HasDynamicTitle {
         btnExpandCollapse.setVisible(false);
         btnExpandCollapse.setMinWidth("120px");
         btnExpandCollapse.setWidth("120px");
+        btnResume.setVisible(false);
+
+        btnResume.setClassName("resume-button");
+
+        btnPause.setVisible(false);
+        btnPause.addClickListener(e -> {
+            if (selectedFlow != null && selectedIdentifier != null && !selectedIdentifier.isPaused()) {
+                Dialogs.confirm("Pause", "Are you sure you want to pause this flow?", "Yes", () -> {
+                    stepManager.pause(selectedIdentifier);
+                });
+            }
+        });
+        pnlTaskDetailsHeader.add(btnPause);
+
+
+
+        btnResume.addClickListener(e -> {
+            if (selectedFlow != null && selectedIdentifier != null && selectedIdentifier.isPaused()) {
+                Dialogs.confirm("Resume", "Are you sure you want to resume this flow?", "Yes", () -> {
+                    stepManager.resume(selectedFlow, selectedIdentifier);
+                });
+            }
+        });
 
         pnlTaskDetailsHeader.add(btnRewind);
+        pnlTaskDetailsHeader.add(btnResume);
         pnlTaskDetailsHeader.add(btnExpandCollapse);
 
         pnlTaskDetailsHeader.add(btnShowHideLogs);
@@ -1085,27 +1148,11 @@ public class MainView extends Page implements StepListener, HasDynamicTitle {
         }
     }
 
-    private StepStatus getFlowStatus(FlowRunIdentifier identifier) {
+    public StepStatus getFlowStatus(FlowRunIdentifier identifier) {
         if (selectedFlow == null || identifier == null) {
             return StepStatus.NOT_STARTED;
         }
-        if (selectedFlowSteps.stream().anyMatch(t -> t.getStatus(identifier) == StepStatus.RUNNING) ||
-                selectedFlowSteps.stream().anyMatch(t -> t.getStatus(identifier) == StepStatus.READY)) {
-            return StepStatus.RUNNING;
-        }
-        if (selectedFlowSteps.stream().anyMatch(t -> t.getStatus(identifier) == StepStatus.PENDING_REWIND) ||
-                selectedFlowSteps.stream().anyMatch(t -> t.getStatus(identifier) == StepStatus.REWINDING)) {
-            return StepStatus.REWINDING;
-        }
-        if (selectedFlowSteps.stream().anyMatch(t -> t.getStatus(identifier) == StepStatus.FAILED)) {
-            return StepStatus.FAILED;
-        }
-        if (selectedFlowSteps.stream().anyMatch(t -> t.getStatus(identifier) == StepStatus.SUCCESS ||
-                t.getStatus(identifier) == StepStatus.REWIND_SUCCESS || t.getStatus(identifier) == StepStatus.REWIND_FAILED)) {
-            return StepStatus.SUCCESS;
-        }
-        return StepStatus.NOT_STARTED;
-
+        return stepManager.getFlowStatus(identifier, selectedFlowSteps);
     }
 
     private void addSettingsConfiguration(Step<?> task) {
@@ -1262,10 +1309,15 @@ public class MainView extends Page implements StepListener, HasDynamicTitle {
                 getUI().ifPresent(ui2 -> ui2.access(identifierDataProvider::refreshAll));
             });
         }
+
         if (identifier != null && !identifier.isBackground() && identifier == selectedIdentifier ) {
+            StepStatus flowStatus = stepManager.getFlowStatus(identifier, selectedFlowSteps);
             getUI().ifPresent(ui -> ui.access(() -> {
                 diagramView.updateTask(task);
-                btnRewind.setVisible(identifier.isRewindArmed());
+                btnRewind.setVisible((identifier.isRewindArmed() || identifier.isPaused()));
+                btnResume.setVisible(selectedIdentifier.isPaused() && !flowStatus.isRewinding());
+//                System.out.println("isRunning: " + identifier.isRunning() + " isPaused: " + identifier.isPaused() + " isPauseRequested: " + identifier.isPauseRequested() + " isPauseable: " + rootTask.getClass().isAnnotationPresent(PauseableFlow.class));
+                btnPause.setVisible(identifier.isRunning() && !identifier.isPaused() && !identifier.isPauseRequested() && rootTask.getClass().isAnnotationPresent(PauseableFlow.class));
             }));
         }
 

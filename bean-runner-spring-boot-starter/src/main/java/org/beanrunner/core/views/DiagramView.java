@@ -165,19 +165,19 @@ public class DiagramView extends VerticalLayout {
     }
 
     private String colorForStatus(StepStatus status) {
-        if (status == StepStatus.RUNNING) {
+        if (status == StepStatus.RUNNING || status == StepStatus.PAUSED_PROBING) {
             return "yellow";
-        } else if (status == StepStatus.SUCCESS) {
+        } else if (status == StepStatus.SUCCESS || status == StepStatus.PAUSED_SUCCESS) {
             return "#99ff6e";
-        } else if (status == StepStatus.FAILED) {
+        } else if (status == StepStatus.FAILED || status == StepStatus.PAUSED_FAILURE) {
             return "red";
         } else if (status == StepStatus.FAILED_TRANSITIVELY) {
             return "lightgray";
         } else if (status == StepStatus.PENDING_REWIND || status == StepStatus.REWINDING) {
             return "orange";
-        } else if (status == StepStatus.REWIND_SUCCESS) {
+        } else if (status == StepStatus.REWIND_SUCCESS || status == StepStatus.PAUSED_REWIND_SUCCESS) {
             return "#26c776";
-        } else if (status == StepStatus.REWIND_FAILED) {
+        } else if (status == StepStatus.REWIND_FAILED || status == StepStatus.PAUSED_REWIND_FAILURE) {
             return "darkred";
         }
         return "white";
@@ -192,19 +192,19 @@ public class DiagramView extends VerticalLayout {
     }
 
     private static String borderForStatus(StepStatus status) {
-        if (status == StepStatus.RUNNING) {
+        if (status == StepStatus.RUNNING || status == StepStatus.PAUSED_PROBING) {
             return "#a69924";
-        } else if (status == StepStatus.SUCCESS) {
+        } else if (status == StepStatus.SUCCESS || status == StepStatus.PAUSED_SUCCESS) {
             return "#1d8236";
-        } else if (status == StepStatus.FAILED) {
+        } else if (status == StepStatus.FAILED || status == StepStatus.PAUSED_FAILURE) {
             return "#8a1e2e";
         } else if (status == StepStatus.FAILED_TRANSITIVELY) {
             return "#a3a3a3";
         } else if (status == StepStatus.PENDING_REWIND || status == StepStatus.REWINDING) {
             return "#996100";
-        } else if (status == StepStatus.REWIND_SUCCESS) {
+        } else if (status == StepStatus.REWIND_SUCCESS || status == StepStatus.PAUSED_REWIND_SUCCESS) {
             return "#1d751d";
-        } else if (status == StepStatus.REWIND_FAILED) {
+        } else if (status == StepStatus.REWIND_FAILED || status == StepStatus.PAUSED_REWIND_FAILURE) {
             return "#4d0218";
         }
         return "darkgray";
@@ -323,6 +323,9 @@ public class DiagramView extends VerticalLayout {
                 } else {
                     node.setShape(Shape.dot);
                 }
+            } else if (selectedIdentifier != null && task.getStatus(selectedIdentifier).isPaused()) {
+                node.setShape(Shape.circularImage);
+                node.setImage("images/pause.png");
             } else {
                 node.setShape(Shape.dot);
             }

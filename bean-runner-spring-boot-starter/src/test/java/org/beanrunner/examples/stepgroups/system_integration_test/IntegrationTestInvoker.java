@@ -18,32 +18,15 @@
  *
  */
 
-package org.beanrunner.core;
+package org.beanrunner.examples.stepgroups.system_integration_test;
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import org.beanrunner.core.FlowInvoker;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
-import java.util.Map;
-
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-public class StepGroupData<D> {
-
-    @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "@bodyClass")
-    Map<String, D> data = new HashMap<>();;
-
-    public D get(String qualifier) {
-        return data.get(qualifier);
+@Component
+public class IntegrationTestInvoker extends FlowInvoker<Void, Void> {
+    public IntegrationTestInvoker(@Autowired DemoServiceIntegrationTest firstStep, @Autowired CompareResults lastStep) {
+        super(firstStep, lastStep);
     }
-
-    public void put(String qualifier, D value) {
-        data.put(qualifier, value);
-    }
-
 }
