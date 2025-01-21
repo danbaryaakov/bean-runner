@@ -497,7 +497,16 @@ public class MainView extends Page implements StepListener, HasDynamicTitle {
             }
 
             layout.setWidthFull();
-            layout.add(new Span(timeString));
+            Span timeSpan = new Span(timeString);
+
+            layout.add(timeSpan);
+
+            if (!stepManager.isLoaded(i)) {
+                Icon icon = VaadinIcon.CLOUD_O.create();
+                icon.setColor("lightgray");
+                icon.setSize("20px");
+                layout.add(icon);
+            }
 
             Span filler2 = new Span();
             layout.add(filler2);
@@ -608,12 +617,14 @@ public class MainView extends Page implements StepListener, HasDynamicTitle {
                     btnRewind.setVisible(false);
                     btnResume.setVisible(false);
                     btnPause.setVisible(false);
+                    logsView.clear();
                 }
             } else {
                 selectedIdentifier = null;
                 diagramView.setSelectedFlow(selectedFlow, null);
                 btnRewind.setVisible(false);
                 btnResume.setVisible(false);
+                logsView.clear();
             }
         });
 //        splitInner.addToPrimary(gridIdentifiers);
@@ -1188,10 +1199,8 @@ public class MainView extends Page implements StepListener, HasDynamicTitle {
         if (task == null) {
             return;
         }
-        if (task instanceof ConfigurationSettings) {
-            VerticalLayout panel = buildPropertiesUI(task, () -> settingsManager.settingUpdated((ConfigurationSettings) task));
-            pnlConfigureTaskSettings.add(panel);
-        }
+        VerticalLayout panel = buildPropertiesUI(task, () -> settingsManager.settingUpdated((ConfigurationSettings) task));
+        pnlConfigureTaskSettings.add(panel);
     }
 
     private VerticalLayout buildPropertiesUI(Object task, Runnable runAfterSet) {

@@ -17,6 +17,6 @@ public class CreateBigtableTable extends TestStep<Void> {
     @Override
     public void run() {
         super.run();
-        sleep(5000);
+//        sleep(5000);
     }
 }

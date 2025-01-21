@@ -141,6 +141,10 @@ public class StepManager {
         }
     }
 
+    public boolean isLoaded(FlowRunIdentifier identifier) {
+        return identifierLoadedStateMap.get(identifier) == LoadedState.LOADED;
+    }
+
     public boolean loadAndPropagateIdentifierIfNecessary(Step<?> rootStep, FlowRunIdentifier identifier) {
         LoadedState state = identifierLoadedStateMap.compute(identifier, (i, value) -> {
             if (value == null || value == LoadedState.NOT_LOADED) {
