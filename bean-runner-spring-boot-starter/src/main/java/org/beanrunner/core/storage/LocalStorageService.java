@@ -28,9 +28,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.nio.file.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 /**
  * Stores files in the local file system.
@@ -95,6 +93,17 @@ public class LocalStorageService implements StorageService, InitializingBean {
 
         return result;
     }
+
+    @Override
+    public List<String> loadBatch(List<String> filePaths) {
+        List<String> contents = new ArrayList<>();
+        for (String filePath : filePaths) {
+            Optional<String> content = read(filePath);
+            content.ifPresent(contents::add);
+        }
+        return contents;
+    }
+
 
     @Override
     public void afterPropertiesSet() throws Exception {

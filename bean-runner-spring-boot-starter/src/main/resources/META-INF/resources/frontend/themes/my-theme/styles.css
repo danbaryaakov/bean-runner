@@ -170,6 +170,17 @@ vaadin-split-layout::part(splitter) {
     animation: rotation-backward 0.8s linear infinite;
 }
 
+.overlay-layout {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent black */
+    z-index: 10; /* Ensure it sits above the base layout */
+    pointer-events: auto; /* Capture all pointer events */
+}
+
 @keyframes rotation-forward {
     0% {
         transform: rotate(0deg);

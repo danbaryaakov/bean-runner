@@ -34,8 +34,7 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -52,21 +51,20 @@ public class StepRunStorage implements InitializingBean {
     private ObjectMapper objectMapper = new ObjectMapper();
 
     public List<FlowRunIdentifier> getIdentifiersForFlow(String flowId) {
-        List<String> folders = storageService.list("runs/" + flowId + "/");
-        return folders.stream().flatMap(folder -> {
-            String[] parts = folder.split("_");
-            if (parts.length == 2) {
-                String id = parts[0];
-                String timestamp = parts[1];
+        List<String> folders = storageService.list("runs/" + flowId + "/identifiers/");
+        List<String> paths = folders.stream().map(folder -> "runs/" + flowId + "/identifiers/" + folder).toList();
+        List<FlowRunIdentifier> identifiers = new ArrayList<>();
+        if (!paths.isEmpty()) {
+            List<String> results = storageService.loadBatch(paths);
+            for (String json : results) {
                 try {
-                    return Stream.of(new FlowRunIdentifier(id, Long.parseLong(timestamp)));
-                } catch (Throwable t) {
-                    // ignore
+                    identifiers.add(objectMapper.readValue(json, FlowRunIdentifier.class));
+                } catch (JsonProcessingException e) {
+                    log.error("Failed to deserialize identifier from JSON", e);
                 }
-                return Stream.empty();
             }
-            return Stream.empty();
-        }).collect(Collectors.toList());
+        }
+        return identifiers;
     }
 
     public <D> void loadStepContext(String flowId, Step<D> step, FlowRunIdentifier id) {
@@ -85,17 +83,51 @@ public class StepRunStorage implements InitializingBean {
     public void storeIdentifier(String flowId, Step<?> step, FlowRunIdentifier identifier) {
         try {
             String content = objectMapper.writeValueAsString(identifier);
-            storageService.store("runs/" + flowId + "/" + identifier.getId() + "_" + identifier.getTimestamp() + "/" + identifier.getId() + ".json", content);
+            storageService.store("runs/" + flowId + "/identifiers/" + identifier.getId() + ".json", content);
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize identifier to JSON", e);
         }
     }
 
     public void loadIdentifier(String flowId, Step<?> step, FlowRunIdentifier identifier) {
-        Optional<String> json = storageService.read("runs/" + flowId + "/" + identifier.getId() + "_" + identifier.getTimestamp() + "/" + identifier.getId() + ".json");
+        Optional<String> json = storageService.read("runs/" + flowId + "/identifiers/" + identifier.getId() + ".json");
         if (json.isPresent()) {
             try {
                 objectMapper.readerForUpdating(identifier).readValue(json.get());
+            } catch (Exception e) {
+                log.error("Failed to load step context", e);
+            }
+        }
+    }
+
+    public void storeStepContext(String flowId, List<Step<?>> steps, FlowRunIdentifier identifier) {
+        StepRunContainer container = new StepRunContainer();
+        Map<String, StepRunContext<?>> contextMap = new HashMap<>();
+        steps.forEach(step -> {
+            String stepIdentifier = qualifierInspector.getQualifierForBean(step);
+            StepRunContext<?> context = step.getContext(identifier);
+            contextMap.put(stepIdentifier, context);
+        });
+        container.setContextMap(contextMap);
+        try {
+            String json = objectMapper.writeValueAsString(container);
+            storageService.store("runs/" + flowId + "/context/" + identifier.getId() + "_context.json", json);
+        } catch (Exception e) {
+            log.error("Failed to save step context", e);
+        }
+    }
+
+    public void loadStepContext(String flowId, List<Step<?>> steps, FlowRunIdentifier identifier) {
+        Optional<String> json = storageService.read("runs/" + flowId + "/context/" + identifier.getId() + "_context.json");
+        if (json.isPresent()) {
+            try {
+                StepRunContainer container = objectMapper.readValue(json.get(), StepRunContainer.class);
+                Map<String, StepRunContext<?>> contextMap = container.getContextMap();
+                steps.forEach(step -> {
+                    String stepIdentifier = qualifierInspector.getQualifierForBean(step);
+                    StepRunContext<?> context = contextMap.get(stepIdentifier);
+                    step.putContext(identifier, context);
+                });
             } catch (Exception e) {
                 log.error("Failed to load step context", e);
             }

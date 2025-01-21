@@ -42,6 +42,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Type;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -86,31 +87,40 @@ public class CustomSpringLogbackAppender extends AppenderBase<ILoggingEvent> imp
         }
     }
 
-    public void storeLogs(String flowId, Step<?> step, FlowRunIdentifier identifier) {
-        String stepIdentifier = qualifierInspector.getQualifierForBean(step);
-        List<LogEvent> logs = logEvents.get(stepIdentifier + "-" + identifier.getId());
-        if (logs != null) {
+    public void storeLogs(String flowId, List<Step<?>> steps, FlowRunIdentifier identifier) {
+
+        Map<String, List<LogEvent>> eventsMap = new HashMap<>();
+        for (Step<?> step : steps) {
+            String stepIdentifier = qualifierInspector.getQualifierForBean(step);
+            List<LogEvent> logs = logEvents.get(stepIdentifier + "-" + identifier.getId());
+            if (logs != null) {
+                eventsMap.put(stepIdentifier, logs);
+            }
+        }
+
+        if (!eventsMap.isEmpty()) {
+            RunLogContainer container = new RunLogContainer(eventsMap);
             try {
-                String jsonString = objectMapper.writeValueAsString(logs);
-                storageService.store("logs/" + flowId + "/" + identifier.getId() + "_" + identifier.getTimestamp() + "/" + stepIdentifier + "_log.json", jsonString);
+                String jsonString = objectMapper.writeValueAsString(container);
+                storageService.store("logs/" + flowId + "/" + identifier.getId() + "_logs.json", jsonString);
             } catch (JsonProcessingException e) {
                 log.error("Failed to store logs", e);
             }
         }
     }
 
-    public void loadLogs(String flowId, Step<?> step, FlowRunIdentifier identifier) {
-        String stepIdentifier = qualifierInspector.getQualifierForBean(step);
-        Optional<String> json = storageService.read("logs/" + flowId + "/" + identifier.getId() + "_" + identifier.getTimestamp() + "/" + stepIdentifier + "_log.json");
+    public void loadLogs(String flowId, List<Step<?>> steps, FlowRunIdentifier identifier) {
+        Optional<String> json = storageService.read("logs/" + flowId + "/" + identifier.getId() + "_logs.json");
         if (json.isPresent()) {
             try {
-                List<LogEvent> logs = objectMapper.readValue(json.get(), new TypeReference<>() {
-                    @Override
-                    public Type getType() {
-                        return super.getType();
+                RunLogContainer container = objectMapper.readValue(json.get(), RunLogContainer.class);
+                for (Step<?> step : steps) {
+                    String stepIdentifier = qualifierInspector.getQualifierForBean(step);
+                    List<LogEvent> logs = container.getEvents().get(stepIdentifier);
+                    if (logs != null) {
+                        logEvents.put(stepIdentifier + "-" + identifier.getId(), logs);
                     }
-                });
-                logEvents.put(stepIdentifier + "-" + identifier.getId(), logs);
+                }
             } catch (IOException e) {
                 log.error("Failed to load logs", e);
             }

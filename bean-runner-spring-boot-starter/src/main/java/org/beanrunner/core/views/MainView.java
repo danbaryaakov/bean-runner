@@ -66,6 +66,7 @@ import org.beanrunner.core.logging.CustomSpringLogbackAppender;
 import org.beanrunner.core.logging.LogEvent;
 import org.beanrunner.core.settings.ConfigurationSettings;
 import org.beanrunner.core.settings.SettingsManager;
+import org.beanrunner.core.views.components.LoadingPanel;
 import org.beanrunner.core.views.components.Page;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -172,6 +173,9 @@ public class MainView extends Page implements StepListener, HasDynamicTitle {
     private Button btnRewind;
 
     private Button btnExpandCollapse = new Button("Expand", VaadinIcon.EXPAND.create());
+
+    private LoadingPanel identifiersLoadingPanel;
+    private LoadingPanel diagramLoadingPanel;
 
     @Override
     public String getPageTitle() {
@@ -391,13 +395,17 @@ public class MainView extends Page implements StepListener, HasDynamicTitle {
                 setPathParameter(0, qualifierInspector.getQualifierForBean(selectedFlow));
 
                 selectedFlowSteps = stepManager.flattenSteps(selectedFlow);
-                stepManager.loadFlowIdentifiersFromStorageIfNecessary(selectedFlow);
 
-                identifiers.clear();
-                identifiers.addAll(e.getFirstSelectedItem().get().getIdentifiers().stream().filter(i -> !i.isBackground()).toList());
-                identifiers.sort((o1, o2) -> Long.compare(o2.getTimestamp(), o1.getTimestamp()));
+                if (stepManager.isFlowLoaded(selectedFlow)) {
+                    identifiersLoadingPanel.setLoading(false);
+                    identifiers.clear();
+                    identifiers.addAll(selectedFlow.getIdentifiers().stream().filter(i -> !i.isBackground()).toList());
+                    identifiers.sort((o1, o2) -> Long.compare(o2.getTimestamp(), o1.getTimestamp()));
 
-                identifierDataProvider.refreshAll();
+                    identifierDataProvider.refreshAll();
+                } else {
+                    identifiersLoadingPanel.setLoading(true);
+                }
 
                 if (!identifiers.isEmpty()) {
                     gridIdentifiers.deselectAll();
@@ -458,6 +466,10 @@ public class MainView extends Page implements StepListener, HasDynamicTitle {
         splitLayout = new SplitLayout();
         splitLayout.setSizeFull();
         splitLayout.addToPrimary(splitLeft);
+
+        btnRewind.setVisible(false);
+        btnResume.setVisible(false);
+        btnPause.setVisible(false);
 
         splitInner.setOrientation(SplitLayout.Orientation.HORIZONTAL);
         splitInner.setSizeFull();
@@ -587,27 +599,21 @@ public class MainView extends Page implements StepListener, HasDynamicTitle {
                 if (selectedStep != null) {
                     setPathParameter(2, qualifierInspector.getQualifierForBean(selectedStep));
                 }
-                stepManager.loadAndPropagateIdentifierIfNecessary(selectedFlow, selectedIdentifier);
-                identifierDataProvider.refreshAll();
-                if (selectedFlow != null) {
-                    FlowRunIdentifier identifier = e.getFirstSelectedItem().get();
-                    pnlTreeView.setRootTask(selectedFlow, identifier);
-                    diagramView.setSelectedFlow(selectedFlow, identifier);
+                boolean isLoaded = stepManager.loadAndPropagateIdentifierIfNecessary(selectedFlow, selectedIdentifier);
+
+                if (isLoaded) {
+                    loadRunIntoView();
+                } else {
+                    diagramLoadingPanel.setLoading(true);
+                    btnRewind.setVisible(false);
+                    btnResume.setVisible(false);
+                    btnPause.setVisible(false);
                 }
-                StepStatus flowStatus = getFlowStatus(selectedIdentifier);
-                btnRewind.setVisible((selectedIdentifier.isRewindArmed() || selectedIdentifier.isPaused()));
-                btnResume.setVisible(selectedIdentifier.isPaused() && !flowStatus.isRewinding());
-                btnPause.setVisible(selectedFlow.getClass().isAnnotationPresent(PauseableFlow.class) && selectedIdentifier.isRunning() && !selectedIdentifier.isPaused() && !selectedIdentifier.isPauseRequested());
             } else {
                 selectedIdentifier = null;
                 diagramView.setSelectedFlow(selectedFlow, null);
                 btnRewind.setVisible(false);
                 btnResume.setVisible(false);
-            }
-            if (selectedStep != null && selectedIdentifier != null) {
-                logsView.setLogEvents(selectedStep, selectedIdentifier, appender.getEvents(qualifierInspector.getQualifierForBean(selectedStep), selectedIdentifier.getId()));
-            } else {
-                logsView.clear();
             }
         });
 //        splitInner.addToPrimary(gridIdentifiers);
@@ -694,7 +700,8 @@ public class MainView extends Page implements StepListener, HasDynamicTitle {
             }
         }).addEventData("event.key").addEventData("event.code"); // Include event data
 
-        splitTopRight.addToPrimary(diagramView);
+        diagramLoadingPanel = new LoadingPanel(diagramView, "#f3f3f3");
+        splitTopRight.addToPrimary(diagramLoadingPanel);
 //        pnlTaskDetails.setSizeFull();
         pnlTaskDetails.getStyle().setPaddingRight("30px");
 
@@ -981,7 +988,9 @@ public class MainView extends Page implements StepListener, HasDynamicTitle {
         pnlIdentifiers.add(pnlIdentifiersHeader);
         pnlIdentifiersHeader.setWidthFull();
 
-        pnlIdentifiers.add(gridIdentifiers);
+
+        identifiersLoadingPanel = new LoadingPanel(gridIdentifiers, "white");
+        pnlIdentifiers.add(identifiersLoadingPanel);
 
         splitLeft.addToSecondary(pnlIdentifiers);
 
@@ -1008,6 +1017,25 @@ public class MainView extends Page implements StepListener, HasDynamicTitle {
             }
         });
 
+    }
+
+    private void loadRunIntoView() {
+        diagramLoadingPanel.setLoading(false);
+        identifierDataProvider.refreshAll();
+        if (selectedFlow != null) {
+            FlowRunIdentifier identifier = selectedIdentifier;
+            pnlTreeView.setRootTask(selectedFlow, identifier);
+            diagramView.setSelectedFlow(selectedFlow, identifier);
+        }
+        StepStatus flowStatus = getFlowStatus(selectedIdentifier);
+        btnRewind.setVisible((selectedIdentifier.isRewindArmed() || selectedIdentifier.isPaused()));
+        btnResume.setVisible(selectedIdentifier.isPaused() && !flowStatus.isRewinding());
+        btnPause.setVisible(selectedFlow.getClass().isAnnotationPresent(PauseableFlow.class) && selectedIdentifier.isRunning() && !selectedIdentifier.isPaused() && !selectedIdentifier.isPauseRequested());
+        if (selectedStep != null) {
+            logsView.setLogEvents(selectedStep, selectedIdentifier, this.appender.getEvents(this.qualifierInspector.getQualifierForBean(selectedStep), selectedIdentifier.getId()));
+        } else {
+            logsView.clear();
+        }
     }
 
     private void rewindAll() {
@@ -1347,6 +1375,26 @@ public class MainView extends Page implements StepListener, HasDynamicTitle {
                 dataProvider.refreshItem(firstStep);
             }
         }));
+    }
+
+    @Override
+    public void flowRunsLoaded(Step<?> firstStep) {
+        if (firstStep == selectedFlow) {
+            getUI().ifPresent(ui -> ui.access(() -> {
+                identifiersLoadingPanel.setLoading(false);
+                identifiers.clear();
+                identifiers.addAll(selectedFlow.getIdentifiers().stream().filter(i -> !i.isBackground()).toList());
+                identifiers.sort((o1, o2) -> Long.compare(o2.getTimestamp(), o1.getTimestamp()));
+                identifierDataProvider.refreshAll();
+            }));
+        }
+    }
+
+    @Override
+    public void runContentLoaded(Step<?> firstStep, FlowRunIdentifier identifier) {
+        if (firstStep == selectedFlow && identifier == selectedIdentifier) {
+            getUI().ifPresent(ui -> ui.access(this::loadRunIntoView));
+        }
     }
 
     public void taskTreeSelectionChanged(Step<?> task, FlowRunIdentifier identifier) {

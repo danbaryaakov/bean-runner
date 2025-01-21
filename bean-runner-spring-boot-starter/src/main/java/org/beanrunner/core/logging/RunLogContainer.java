@@ -18,15 +18,20 @@
  *
  */
 
-package org.beanrunner.core.storage;
+package org.beanrunner.core.logging;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
-public interface StorageService {
-    void store(String path, String content);
-    Optional<String> read(String path);
-    List<String> list(String path);
-    List<String> loadBatch(List<String> filePaths);
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
+public class RunLogContainer {
+    private Map<String, List<LogEvent>> events;
 }

@@ -24,4 +24,6 @@ public interface StepListener {
     void stepChanged(Step<?> task, FlowRunIdentifier identifier);
     void runAdded(Step<?> task, FlowRunIdentifier identifier, boolean userInitiated);
     void runRemoved(Step<?> firstStep, FlowRunIdentifier identifier);
+    void flowRunsLoaded(Step<?> firstStep);
+    void runContentLoaded(Step<?> firstStep, FlowRunIdentifier identifier);
 }

@@ -18,15 +18,11 @@
  *
  */
 
-package org.beanrunner.core.storage;
+package org.beanrunner.core;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
-public interface StorageService {
-    void store(String path, String content);
-    Optional<String> read(String path);
-    List<String> list(String path);
-    List<String> loadBatch(List<String> filePaths);
+public enum LoadedState {
+    NOT_LOADED,
+    SHOULD_LOAD,
+    LOADING,
+    LOADED,
 }

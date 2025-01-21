@@ -61,8 +61,11 @@ public class StepManager {
 
     private final QualifierInspector qualifierInspector;
     private final StepRunStorage stepRunStorage;
+    private final Map<Step<?>, LoadedState> flowIdentifierLoadingState = new ConcurrentHashMap<>();
     private final Map<Step<?>, Long> identifierStartLoadTime = new ConcurrentHashMap<>();
     private final Map<FlowRunIdentifier, Long> identifierPropagationLoadingTime = new ConcurrentHashMap<>();
+    private final Map<FlowRunIdentifier, LoadedState> identifierLoadedStateMap = new ConcurrentHashMap<>();
+
     private final CustomSpringLogbackAppender appender;
     private final StorageService storageService;
 
@@ -111,35 +114,73 @@ public class StepManager {
 
         for (Step<?> firstStep : firstSteps) {
             executors.addListener(id -> runStopped(firstStep, id));
+
+            flowIdentifierLoadingState.put(firstStep, LoadedState.LOADING);
+            CompletableFuture.runAsync(() -> {
+                loadFlowIdentifiers(firstStep);
+            });
         }
 
     }
 
     public void loadFlowIdentifiersFromStorageIfNecessary(Step<?> rootStep) {
-        long now = System.nanoTime();
-        long started = identifierStartLoadTime.computeIfAbsent(rootStep, key -> now);
-        if (started == now) {
-            String flowId = getFlowId(rootStep);
-            List<FlowRunIdentifier> identifiers = stepRunStorage.getIdentifiersForFlow(flowId);
-            for (FlowRunIdentifier identifier : identifiers) {
-                stepRunStorage.loadStepContext(flowId, rootStep, identifier);
-                stepRunStorage.loadIdentifier(flowId, rootStep, identifier);
-                identifier.setOverrideDisplayValues(true);
+        try {
+            long now = System.nanoTime();
+            long started = identifierStartLoadTime.computeIfAbsent(rootStep, key -> now);
+            if (started == now) {
+                String flowId = getFlowId(rootStep);
+                List<FlowRunIdentifier> identifiers = stepRunStorage.getIdentifiersForFlow(flowId);
+                for (FlowRunIdentifier identifier : identifiers) {
+                    stepRunStorage.loadIdentifier(flowId, rootStep, identifier);
+                    identifier.setOverrideDisplayValues(true);
+                    rootStep.contextMap.put(identifier, new StepRunContext<>());
+                }
             }
+        } catch (Throwable t) {
+            log.error("Failed to load flow identifiers", t);
         }
     }
 
-    public void loadAndPropagateIdentifierIfNecessary(Step<?> rootStep, FlowRunIdentifier identifier) {
-        long now = System.nanoTime();
-        long started = identifierPropagationLoadingTime.computeIfAbsent(identifier, key -> now);
-        if (started == now) {
-            String flowId = getFlowId(rootStep);
-            List<Step<?>> steps = flattenSteps(rootStep);
-            for (Step<?> step : steps) {
-                stepRunStorage.loadStepContext(flowId, step, identifier);
-                appender.loadLogs(getFlowId(rootStep), step, identifier);
+    public boolean loadAndPropagateIdentifierIfNecessary(Step<?> rootStep, FlowRunIdentifier identifier) {
+        LoadedState state = identifierLoadedStateMap.compute(identifier, (i, value) -> {
+            if (value == null || value == LoadedState.NOT_LOADED) {
+                return LoadedState.SHOULD_LOAD;
             }
+            if (value == LoadedState.SHOULD_LOAD) {
+                return LoadedState.LOADING;
+            }
+            return value;
+        });
+
+        if (state == LoadedState.SHOULD_LOAD) {
+            CompletableFuture.runAsync(() -> {
+                String flowId = getFlowId(rootStep);
+                List<Step<?>> steps = flattenSteps(rootStep);
+                stepRunStorage.loadStepContext(flowId, steps, identifier);
+                appender.loadLogs(getFlowId(rootStep), steps, identifier);
+                identifierLoadedStateMap.put(identifier, LoadedState.LOADED);
+                listeners.forEach(listener -> listener.runContentLoaded(rootStep, identifier));
+            });
         }
+
+        return state == LoadedState.LOADED;
+    }
+
+    public boolean isFlowLoaded(Step<?> firstStep) {
+        return flowIdentifierLoadingState.get(firstStep) == LoadedState.LOADED;
+    }
+
+    private void loadFlowIdentifiers(Step<?> firstStep) {
+        String flowId = getFlowId(firstStep);
+        long startTime = System.currentTimeMillis();
+        List<FlowRunIdentifier> identifiers = stepRunStorage.getIdentifiersForFlow(flowId);
+        log.info("Loading identifiers list took {} ms", System.currentTimeMillis() - startTime);
+        for (FlowRunIdentifier identifier : identifiers) {
+            identifier.setOverrideDisplayValues(true);
+            firstStep.contextMap.put(identifier, new StepRunContext<>());
+        }
+        flowIdentifierLoadingState.put(firstStep, LoadedState.LOADED);
+        listeners.forEach(listener -> listener.flowRunsLoaded(firstStep));
     }
 
     public boolean isArchived(Step<?> rootStep, FlowRunIdentifier identifier) {
@@ -249,6 +290,7 @@ public class StepManager {
         identifier.setSourceName(source);
         identifier.setSourceIconPath(sourceIcon);
         identifier.setTaskId(firstStep.getClass().getSimpleName());
+        identifierLoadedStateMap.put(identifier, LoadedState.LOADED);
         identifierPropagationLoadingTime.put(identifier, System.nanoTime());
         identifier.setRunning(true);
         firstStep.getContext(identifier).setData(parameter);
@@ -949,6 +991,7 @@ public class StepManager {
                 identifier.setRunning(false);
                 if (identifier.isPauseRequested() && rootStatus.isPaused()) {
                     identifier.setPaused(true);
+                    notifyListeners(firstStep, identifier);
                 }
                 RunRetentionConfig retentionConfig = firstStep.getClass().getAnnotation(RunRetentionConfig.class);
                 boolean shouldSave = true;
@@ -962,10 +1005,9 @@ public class StepManager {
                 }
                 if (!identifier.isBackground() || shouldSave) {
                     stepRunStorage.storeIdentifier(flowId, firstStep, identifier);
-                    flattenSteps(firstStep).forEach(t -> {
-                        stepRunStorage.saveStepContext(flowId, t, identifier);
-                        appender.storeLogs(flowId, t, identifier);
-                    });
+                    List<Step<?>> flattened = flattenSteps(firstStep);
+                    stepRunStorage.storeStepContext(flowId, flattened, identifier);
+                    appender.storeLogs(flowId, flattened, identifier);
                 } else {
                     executors.schedule(identifier, () -> {
                         deleteRun(firstStep, identifier);

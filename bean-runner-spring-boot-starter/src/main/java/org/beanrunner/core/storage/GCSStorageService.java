@@ -21,15 +21,14 @@
 package org.beanrunner.core.storage;
 
 import com.google.cloud.storage.*;
+import org.beanrunner.core.views.components.Page;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Component
 @ConditionalOnProperty(name = "bean-runner.storage.type", havingValue = "gcs")
@@ -74,10 +73,24 @@ public class GCSStorageService implements StorageService, InitializingBean {
         for (Blob blob : blobs) {
             String name = blob.getName();
 
-            result.add(name);
+            String objectName = name;
+            if (objectName.endsWith("/")) {
+                objectName = objectName.substring(0, objectName.length() - 1);
+            }
+            objectName = objectName.substring(objectName.lastIndexOf("/") + 1);
 
+            result.add(objectName);
         }
         return result;
+    }
+
+    @Override
+    public List<String> loadBatch(List<String> filePaths) {
+        // Create a batch request
+        return filePaths.stream().parallel().map(filePath -> {
+            BlobId blobId = BlobId.of(bucket, filePath);
+            return new String(storage.readAllBytes(blobId));
+        }).toList();
     }
 
     @Override

@@ -23,12 +23,9 @@ package org.beanrunner.core;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
-import org.beanrunner.core.annotations.*;
 import org.beanrunner.core.settings.ConfigurationSettings;
 import org.slf4j.MDC;
 
-import java.lang.reflect.Field;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Set;
@@ -133,6 +130,8 @@ public abstract class Step<D> implements ConfigurationSettings {
         return getContext(flowRunIdentifier).getTimeout();
     }
 
-
+    public void putContext(FlowRunIdentifier flowRunIdentifier, StepRunContext<?> context) {
+        contextMap.put(flowRunIdentifier, (StepRunContext<D>) context);
+    }
 
 }

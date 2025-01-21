@@ -24,6 +24,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Component
@@ -43,5 +44,11 @@ public class NoStorageService implements StorageService {
     public List<String> list(String path) {
         return List.of();
     }
+
+    @Override
+    public List<String> loadBatch(List<String> filePaths) {
+        return List.of();
+    }
+
 
 }
