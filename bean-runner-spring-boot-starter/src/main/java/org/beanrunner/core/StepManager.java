@@ -1130,8 +1130,8 @@ public class StepManager {
 
     FailureBehavior getFailureBehavior(Step<?> step) {
         Step<?> firstStep = getFirstStep(step);
-        if (firstStep.getClass().isAnnotationPresent(PauseableFlow.class)) {
-            return firstStep.getClass().getAnnotation(PauseableFlow.class).value();
+        if (firstStep.getClass().isAnnotationPresent(FlowPauseBehavior.class)) {
+            return firstStep.getClass().getAnnotation(FlowPauseBehavior.class).failureBehavior();
         }
         return FailureBehavior.REWIND;
     }

@@ -1041,7 +1041,7 @@ public class MainView extends Page implements StepListener, HasDynamicTitle {
         StepStatus flowStatus = getFlowStatus(selectedIdentifier);
         btnRewind.setVisible((selectedIdentifier.isRewindArmed() || selectedIdentifier.isPaused()));
         btnResume.setVisible(selectedIdentifier.isPaused() && !flowStatus.isRewinding());
-        btnPause.setVisible(selectedFlow.getClass().isAnnotationPresent(PauseableFlow.class) && selectedIdentifier.isRunning() && !selectedIdentifier.isPaused() && !selectedIdentifier.isPauseRequested());
+        btnPause.setVisible(selectedFlow.getClass().isAnnotationPresent(FlowPauseBehavior.class) && selectedIdentifier.isRunning() && !selectedIdentifier.isPaused() && !selectedIdentifier.isPauseRequested());
         if (selectedStep != null) {
             logsView.setLogEvents(selectedStep, selectedIdentifier, this.appender.getEvents(this.qualifierInspector.getQualifierForBean(selectedStep), selectedIdentifier.getId()));
         } else {
@@ -1354,7 +1354,7 @@ public class MainView extends Page implements StepListener, HasDynamicTitle {
                 btnRewind.setVisible((identifier.isRewindArmed() || identifier.isPaused()));
                 btnResume.setVisible(selectedIdentifier.isPaused() && !flowStatus.isRewinding());
 //                System.out.println("isRunning: " + identifier.isRunning() + " isPaused: " + identifier.isPaused() + " isPauseRequested: " + identifier.isPauseRequested() + " isPauseable: " + rootTask.getClass().isAnnotationPresent(PauseableFlow.class));
-                btnPause.setVisible(identifier.isRunning() && !identifier.isPaused() && !identifier.isPauseRequested() && rootTask.getClass().isAnnotationPresent(PauseableFlow.class));
+                btnPause.setVisible(identifier.isRunning() && !identifier.isPaused() && !identifier.isPauseRequested() && rootTask.getClass().isAnnotationPresent(FlowPauseBehavior.class));
             }));
         }
 

@@ -458,3 +458,15 @@ public class HelloWorld extends Step<Void> {
 
 This will schedule the flow to run every minute. Use spring format CRON expressions.
 You can then enable or disable the scheduled execution in the UI using the clock icon that will appear next to the flow name.
+
+
+## Flow Pause & Resume
+
+ Pause & Resume can be enabled for flows using the following annotation:
+ 
+```java
+@FlowPauseBehavior(failureBehavior = FailureBehavior.PAUSE)
+```
+
+This will make the flow pause on failure, and you can then resume it manually from the UI. You can also pause the flow
+manually from the UI at any time and resume at a later time. It is recommended that all long running flows have this feature enabled.
